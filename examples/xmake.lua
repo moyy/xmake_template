@@ -1,7 +1,7 @@
--- xmake build math_example 
--- xmake run math_example 
+-- xmake build example_math 
+-- xmake run example_math 
 
-target("math_example")
+target("example_math")
     set_kind("binary") -- 设置为可执行文件
     add_deps("math")  -- 添加依赖
     set_default(false)

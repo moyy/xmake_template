@@ -1,9 +1,9 @@
 add_requires("gtest")
 
--- xmake build test_utils
--- xmake run test_utils
+-- xmake build tests
+-- xmake run tests
 
-target("test_utils")
+target("tests")
     set_kind("binary")
     add_deps("math")
     add_packages("gtest")
