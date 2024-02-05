@@ -1,0 +1,1 @@
+# xmake_template
