@@ -2,41 +2,47 @@
 
 ## 1.1. 语言特性
 
++ `constexpr` / `static_assert`
 + 初始化列表：大括号
-+ char16_t / char32_t / long long
-+ alignof / alignas
++ `char16_t` / `char32_t` / `long long`
++ `alignof` / `alignas`
 + 原始字符串
-+ lambda 表达式
-+ noexcept / constexpr
-+ auto / decltype
-+ 基于范围 for循环
-+ 属性: 例 [[noreturn]] / [[deprecated(“reason”)]]
+    - R"delimiter(原始字符串)delimiter"
++ Lambda 表达式
++ `noexcept`
++ `auto` / `decltype`
++ 基于范围for循环: for (auto &item: v) { }
++ 属性
+    - [[noreturn]] 指示函数不可能返回
+    - [[deprecated(“reason”)]] 指示 废弃
++ 枚举类 `enum class`
 + 面向对象
+    - `explicit`
     - 委托 构造函数
     - 继承 构造函数
     - 移动构造 / 移动赋值
-    - 默认函数 / 删除函数：= default / = delete
-    - final / override
-    - 非静态数据成员的默认初始化：允许在类定义中直接为非静态成员赋予初始值。
-    - 枚举类（enum class）
+    - 默认函数 / 删除函数：`=default` / `=delete`
+    - `final` / `override`
+    - 非静态数据成员 默认初始化
 
 ## 1.2. 标准库
 
 + 移动语义 / 完美转发
     - std::move / std::forward
 + 智能指针
-    - std::shared_ptr std::unique_ptr std::weak_ptr
-    - std::make_unique / std::make_shared
+    - std::unique_ptr / std::make_unique
+    - std::shared_ptr / std::make_shared
+    - std::weak_ptr
 + 并发 / 多线程
-    - std::thread_local
-    - std::thread std::call_once
-    - std::mutex std::lock
+    - `thread_local`
+    - std::thread / std::call_once
+    - std::mutex / std::lock
     - std::atomic
     - std::condition_variable
     - std::async / std:future
 + 函数 std::function / std::bind
 + 类型特征 <type_traits>
-    - std::enable_if 根据编译时布尔表达式 启用/禁用 模板，C++ 20后 被 Concepts 代替。
+    - std::enable_if /std::is_base_of 根据编译时布尔表达式 启用/禁用 模板，C++ 20后 被 Concepts 代替。
     - 类型关系：std::is_same，用于检查两个类型是否相同。
     - 类型属性：std::is_const，std::is_volatile，std::is_integral，std::is_floating_point
     - 类型修改：提供转换类型的方式，std::remove_const，std::add_pointer
@@ -51,7 +57,7 @@
     - std::unordered_map、std::unordered_set
     - std::tuple / std::tie / std::get / std::make_tuple
 + 算法
-    - std::all_of std::any_of std::none_of
+    - std::all_of / std::any_of / std::none_of
     - std::copy_if
     - std::exchange
 
@@ -59,14 +65,34 @@
 
 ## 2.1. 语言特性
 
-+ 结构化绑定：允许从tuple或结构体一次性解构多个变量。
-+ constexpr
++ if / switch 能用 初始化器
++ 枚举 直接列表初始化
++ 对 强类型枚举 直接列表初始化
++ `constexpr` if 基于编译时条件的分支
++ constexpr Lambda
++ Lambda 按值捕获 `*this` 
++ 类模板参数推导
++ 非类型模板参数的 `auto`
++ 折叠表达式（Folding Expressions）
++ 从 初始化列表 自动推断 `auto`
++ 用 `inline` 声明变量
++ 嵌套命名空间 namespace A::B::C
++ 结构化绑定（Structured Bindings）
++ `__has_include` 预处理指令，用于检测特定头文件是否存在
++ 属性
+    - [[fallthrough]]：指示编译器 忽略switch语句中的 case 贯穿警告
+    - [[nodiscard]]：强调 函数返回值 不应被忽略
+    - [[maybe_unused]]：指示编译器 忽略未使用 实体 警告
 
 ## 2.2. 标准库
 
++ std::filesystem
 + std::optional
 + std::variant / std::any
-+ std::filesystem
++ std::invoke / std::apply
++ std::string_view
++ std::sample / std::clamp / std::reduce
++ 某些 并行算法
 
 # 3. C++20
 
@@ -79,6 +105,13 @@
 
 ## 3.2. 标准库
 
++ Concepts 库
++ std::span
++ std::is_constant_evaluated
++ string: starts_with / ends_with
++ std::bit_cast
++ std::midpoint
++ std::to_array
 
 # 4. 库
 
