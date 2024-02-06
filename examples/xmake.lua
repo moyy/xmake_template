@@ -3,7 +3,7 @@
 target("example_math")
     set_kind("binary") -- 设置为可执行文件
     add_deps("math")  -- 添加依赖
-    set_default(false)
+    set_default(false) -- 默认不构建，要构建，需要显式：xmake build/run example_math 
     add_files("math/*.cpp") -- 添加源文件
 
 -- 定义一个函数来为指定目录下的每个.cpp文件创建target
