@@ -69,6 +69,7 @@
         "condition_variable": "cpp",
         "forward_list": "cpp",
         "iomanip": "cpp",
-        "sstream": "cpp"
+        "sstream": "cpp",
+        "__config": "cpp"
     }
 }
