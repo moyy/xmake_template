@@ -1,7 +1,12 @@
 add_rules("mode.debug", "mode.release")
 
 -- c++ 20 标准
-set_languages("cxx20")
+set_languages("c++20")
+
+-- 仅对 MSVC 编译器添加 /Zc:__cplusplus 选项
+if is_plat("windows") then
+    add_cxflags("/Zc:__cplusplus", {force = true})
+end
 
 -- 引入 模块
 includes("modules/utils")

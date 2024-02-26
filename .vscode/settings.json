@@ -51,6 +51,24 @@
         "xmemory": "cpp",
         "xstring": "cpp",
         "xtr1common": "cpp",
-        "xutility": "cpp"
+        "xutility": "cpp",
+        "string": "cpp",
+        "03_auto_decltype": "cpp",
+        "vector": "cpp",
+        "algorithm": "cpp",
+        "functional": "cpp",
+        "list": "cpp",
+        "optional": "cpp",
+        "unordered_map": "cpp",
+        "xhash": "cpp",
+        "any": "cpp",
+        "map": "cpp",
+        "variant": "cpp",
+        "xtree": "cpp",
+        "chrono": "cpp",
+        "condition_variable": "cpp",
+        "forward_list": "cpp",
+        "iomanip": "cpp",
+        "sstream": "cpp"
     }
 }

@@ -26,6 +26,8 @@ end
 -- 调用函数为指定目录创建targets
 -- 构建 xmake build example_`CPP文件名`
 -- 运行 xmake run example_`CPP文件名`
+add_example_targets("cpp98")
 add_example_targets("cpp11_14")
 add_example_targets("cpp17")
 add_example_targets("cpp20")
+add_example_targets("templates")
