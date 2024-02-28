@@ -3,15 +3,11 @@
 
 从 C++ 20 的 type_traits 的 某些类型的实现 讲述 模板元编程
 
-注：下面的代码片段 可以 修改后 拷贝到 [Compiler Explorer](https://godbolt.org)运行
+## 01. 笔记来源
 
-![](../images/WX20240226-164001.png)
-
-## 01. 来源
-
-+ [Github CppCon2020的课件](https://github.com/CppCon/CppCon2020/blob/main/Presentations/template_metaprogramming_type_traits/template_metaprogramming_type_traits__jody_hagins__cppcon_2020.pdf)
-+ [B站：模版元编程之Type Traits: 第一部分，下面的 02-12节](https://www.bilibili.com/video/BV1Yh411f7Yk)
-+ [B站：模版元编程之Type Traits: 第二部分，下面的 13-28节](https://www.bilibili.com/video/BV1LK411g7ta)
++ [B站：模版元编程 Type Traits 1: 第02-12节](https://www.bilibili.com/video/BV1Yh411f7Yk)
++ [B站：模版元编程 Type Traits 2: 第13-28节](https://www.bilibili.com/video/BV1LK411g7ta)
++ [上面视频 的 PPT](https://github.com/CppCon/CppCon2020/blob/main/Presentations/template_metaprogramming_type_traits/template_metaprogramming_type_traits__jody_hagins__cppcon_2020.pdf)
 
 # 02. MetaFunction 元函数
 
@@ -20,9 +16,9 @@
 
 值元函数，输入 类型 / 值，输出 值 value
 
-``` cpp
-// 拷贝到这里运行：https://godbolt.org/
+点击 [这里](https://godbolt.org/z/bohfboeGq) 运行代码
 
+``` cpp
 #include <iostream>
 
 template <typename T>
@@ -38,9 +34,9 @@ int main() {
 
 类型元函数：输入 类型 / 值，输出 类型 type
 
-``` cpp
-// 拷贝到这里运行：https://godbolt.org/
+点击 [这里](https://godbolt.org/z/6Wr9zYqEM) 运行代码
 
+``` cpp
 #include <type_traits>
 
 template <typename T>
@@ -60,9 +56,9 @@ int main() {
 
 常量 普通函数:
 
-``` cpp
-// 拷贝到这里运行：https://godbolt.org/
+点击 [这里](https://godbolt.org/z/a41TTzMfx) 运行代码
 
+``` cpp
 constexpr int int_identity(int x) {
     return x;
 }
@@ -75,9 +71,9 @@ int main() {
 
 元函数:
 
-``` cpp
-// 拷贝到这里运行：https://godbolt.org/
+点击 [这里](https://godbolt.org/z/src9ddEab) 运行代码
 
+``` cpp
 template <int X>
 struct IntIdentity {
     static constexpr int value = X;
@@ -93,9 +89,9 @@ int main() {
 
 常量 泛型函数:
 
-``` cpp
-// 拷贝到这里运行：https://godbolt.org/
+点击 [这里](https://godbolt.org/z/nj8hG5Ec4) 运行代码
 
+``` cpp
 template <typename T>
 constexpr T identity(T x) {
     return x;
@@ -109,9 +105,9 @@ int main() {
 
 元函数:
 
-``` cpp
-// 拷贝到这里运行：https://godbolt.org/
+点击 [这里](https://godbolt.org/z/3MseeG8d9) 运行代码
 
+``` cpp
 template <typename T, T Value>
 struct ValueIdentity {
     static constexpr T value = Value;
@@ -127,9 +123,9 @@ int main() {
 
 C++ 17 有了 auto 模板之后：
 
-``` cpp
-// 拷贝到这里运行：https://godbolt.org/
+点击 [这里](https://godbolt.org/z/v6ePYo57n) 运行代码
 
+``` cpp
 template <auto X>
 struct Identity {
     static constexpr auto value = X;
@@ -143,9 +139,9 @@ int main() {
 
 惯例：引入 _v，方便调用，不需要 老写 ::value
 
-``` cpp
-// 拷贝到这里运行：https://godbolt.org/
+点击 [这里](https://godbolt.org/z/E8n59hEGx) 运行代码
 
+``` cpp
 template <auto X>
 struct Identity {
     static constexpr auto value = X;
@@ -164,9 +160,9 @@ int main() {
 
 普通函数，编译期 & 运行期
 
-``` cpp
-// 拷贝到这里运行：https://godbolt.org/
+点击 [这里](https://godbolt.org/z/na5nnnodz) 运行代码
 
+``` cpp
 template<typename X, typename Y>
 constexpr auto sum(X a, Y b) {
     return a + b;
@@ -180,9 +176,9 @@ int main() {
 
 元函数：
 
-``` cpp
-// 拷贝到这里运行：https://godbolt.org/
+点击 [这里](https://godbolt.org/z/1rzPG5Gbz) 运行代码
 
+``` cpp
 template<auto X, auto Y>
 struct Sum {
     static constexpr auto value = X + Y;
@@ -196,9 +192,9 @@ int main() {
 
 惯例：引入 _v，方便调用，不需要 老写 ::value
 
-``` cpp
-// 拷贝到这里运行：https://godbolt.org/
+点击 [这里](https://godbolt.org/z/8K94rqsGr) 运行代码
 
+``` cpp
 template<auto X, auto Y>
 struct Sum {
     static constexpr auto value = X + Y;
@@ -217,9 +213,9 @@ int main() {
 
 C++ 20，引入了 `std::type_identity`，实现 和 下面等同；
 
-``` cpp
-// 拷贝到这里运行：https://godbolt.org/
+点击 [这里](https://godbolt.org/z/j9Ev1jsTd) 运行代码
 
+``` cpp
 #include <iostream>
 
 template <typename T>
@@ -248,9 +244,9 @@ int main() {
 
 惯例：引入 _t，方便调用，不需要 老写 ::type
 
-``` cpp
-// 拷贝到这里运行：https://godbolt.org/
+点击 [这里](https://godbolt.org/z/hxY4ncGe6) 运行代码
 
+``` cpp
 #include <type_traits>
 
 template <typename T>
@@ -269,9 +265,9 @@ int main() {
 
 # 06. `std::integral_constant`
 
-``` cpp
-// 拷贝到这里运行：https://godbolt.org/
+点击 [这里](https://godbolt.org/z/rKannrf9s) 运行代码
 
+``` cpp
 #include <type_traits>
 
 template <typename T, T v>
@@ -316,33 +312,13 @@ int main() {
 
 定义 bool:
 
+点击 [这里](https://godbolt.org/z/4EWjz7Tdc) 运行代码
+
 ``` cpp
-// 拷贝到这里运行：https://godbolt.org/
-
-// integral_constant 定义如上
-template <typename T, T v>
-struct integral_constant {
-    // 既是值元函数
-    static constexpr T value = v;
-
-    using value_type = T;
-    
-    // 又是类型元函数
-    using type = integral_constant<T, v>;
-    
-    // T() 的 隐式转换
-    constexpr operator value_type() const noexcept { 
-        return value; 
-    }
-    
-    // 可调用：函数对象
-    constexpr value_type operator() () const noexcept { 
-        return value; 
-    }
-};
+#include <type_traits>
 
 template <bool B>
-using bool_constant = integral_constant<bool, B>;
+using bool_constant = std::integral_constant<bool, B>;
 
 // 0 元函数，没有参数
 using true_type = bool_constant<true>;
@@ -390,9 +366,9 @@ int main() {
 
 # 10. `std::is_void`: Unary Type Trait
 
-``` cpp
-// 拷贝到这里运行：https://godbolt.org/
+点击 [这里](https://godbolt.org/z/f3f15b5an) 运行代码
 
+``` cpp
 #include <type_traits>
 
 // 一般 情况，是 false
@@ -415,9 +391,9 @@ int main() {
 
 标准规定：T 和 const T 以及 volatile T 都能得到 相同的结果
 
-``` cpp
-// 拷贝到这里运行：https://godbolt.org/
+点击 [这里](https://godbolt.org/z/bsaovM3Kr) 运行代码
 
+``` cpp
 #include <type_traits>
 
 int main() {
@@ -431,9 +407,9 @@ int main() {
 
 为了达到这一点，这个 is_void 要重新实现如下：
 
-``` cpp
-// 拷贝到这里运行：https://godbolt.org/
+点击 [这里](https://godbolt.org/z/5jnM8ajqM) 运行代码
 
+``` cpp
 #include <type_traits>
 
 // 一般 情况，是 false
@@ -475,16 +451,15 @@ int main() {
 + remove_const<int const *> -> int const *  // 注意：指针 指向 int const，该值不能修改
 + remove_const<int const * const> -> int const *
 
+点击 [这里](https://godbolt.org/z/vf88Yo5he) 运行代码
+
 ``` cpp
-// 拷贝到这里运行：https://godbolt.org/
-
 #include <type_traits>
+#include <iostream>
 
-// 主模板声明
 template <typename T>
 struct remove_const: std::type_identity<T> {};
 
-// 模板偏特化
 template <typename T>
 struct remove_const<T const>: std::type_identity<T> {};
 
@@ -492,9 +467,14 @@ template <typename T>
 using remove_const_t = typename remove_const<T>::type;
 
 int main() {
+    std::cout << "main() start" << std::endl;
+
     static_assert(std::is_same_v<remove_const_t<int>, int>, "int is the same");
+    
     static_assert(std::is_same_v<remove_const_t<const int>, int>, "const int is the same as int");
- 
+    
+    std::cout << "main() finish" << std::endl;
+    
     return 0;
 }
 ```
@@ -503,9 +483,9 @@ int main() {
 
 std::conditional_t<bool, T, F> 当 bool 成立 类型就是 T，否则就是 F
 
-``` cpp
-// 拷贝到这里运行：https://godbolt.org/
+点击 [这里](https://godbolt.org/z/EsMonao7r) 运行代码
 
+``` cpp
 #include <type_traits>
 
 template <bool Condition, typename T, typename F>
@@ -532,12 +512,12 @@ int main() {
 + std::is_void: 4次特化，void, void const, void volatile, void const volatile
 + std::is_null_pointer `C++ 14`, 4次特化
 + std::is_integral: 16 * 4 次 特化；
-    - bool
-    - signed char, short, int, long, long long
-    - unsigned char, unsigned short, unsigned int, unsigned long, unsigned long long
-    - char, wchat_t, char8_t, char16_t, char32_t
+  - bool
+  - signed char, short, int, long, long long
+  - unsigned char, unsigned short, unsigned int, unsigned long, unsigned long long
+  - char, wchat_t, char8_t, char16_t, char32_t
 + std::is_floating_point: 3 * 4 次 特化
-    - float, double, long double
+  - float, double, long double
 + std::is_array
 + std::is_enum
 + std::is_union
@@ -562,9 +542,9 @@ int main() {
 
 # 15. `std::remove_volatile`
 
-``` cpp
-// 拷贝到这里运行：https://godbolt.org/
+点击 [这里](https://godbolt.org/z/6ffxavT4e) 运行代码
 
+``` cpp
 #include <type_traits>
 
 template <typename T>
@@ -585,9 +565,9 @@ int main() {
 
 # 16. `std::remove_cv`
 
-``` cpp
-// 拷贝到这里运行：https://godbolt.org/
+点击 [这里](https://godbolt.org/z/chjGcfrb1) 运行代码
 
+``` cpp
 #include <type_traits>
 
 // 实现 remove_cv
@@ -601,14 +581,13 @@ int main () {
     static_assert(std::is_same_v<remove_cv_t<int const volatile>, int>);
     return 0;
 }
-
 ```
 
 # 17. `std::is_same` 比较类型
 
-``` cpp
-// 拷贝到这里运行：https://godbolt.org/
+点击 [这里](https://godbolt.org/z/8axnKocx3) 运行代码
 
+``` cpp
 #include <type_traits>
 
 template <typename T1, typename T2>
@@ -630,27 +609,31 @@ int main() {
 
 # 18. 方便 比较 函数 is_sam_raw
 
-``` cpp
-// 拷贝到这里运行：https://godbolt.org/
+点击 [这里](https://godbolt.org/z/33dbdMjqc) 运行代码
 
+``` cpp
 #include <type_traits>
 
 template <typename T1, typename T2>
-using is_same_raw = std::is_same<remove_cv_t<T1>, remove_cv_t<T2>>;
+using is_same_raw = std::is_same<std::remove_cv_t<T1>, std::remove_cv_t<T2>>;
 
 template <typename T1, typename T2>
 inline constexpr bool is_same_raw_v = is_same_raw<T1, T2>::value;
 
+// 具体使用 见 下一节
+int main() {
+    return 0;
+}
 ```
 
 # 19. `std::is_floating_point`
 
-``` cpp
-// 拷贝到这里运行：https://godbolt.org/
+点击 [这里](https://godbolt.org/z/rT3dz8Y8E) 运行代码
 
+``` cpp
 #include <type_traits>
 
-// is_same_raw 抄上面
+// is_same_raw 抄 上一节
 template <typename T1, typename T2>
 using is_same_raw = std::is_same<std::remove_cv_t<T1>, std::remove_cv_t<T2>>;
 
@@ -675,9 +658,9 @@ int main() {
 
 # 20. `std::is_integral`
 
-``` cpp
-// 拷贝到这里运行：https://godbolt.org/
+点击 [这里](https://godbolt.org/z/h8qa5Parb) 运行代码
 
+``` cpp
 #include <type_traits>
 
 // is_same_raw 抄上面
@@ -718,25 +701,37 @@ int main() {
 
 # 21. `is_type_in_pack` 概述
 
-``` cpp
+注：以下代码并不完整
 
+只是说明一个意图；并没有实现 is_type_in_pack
+
+``` cpp
 template <typename TargetT, typename ... Ts>
 using is_type_in_pack = ...
 
+#include <type_traits>
+
 template <typename T>
-using is_integral = is_type_in_pack<remove_cv_t<T>,
+using is_integral = is_type_in_pack<std::remove_cv_t<T>,
     bool,
     char, wchar_t, char8_t, char16_t, char32_t,
     singned char, short, int, long, long long,
     unsigned char, unsigned short, unsigned int, unsigned long, unsigned long long
 >;
+template <typename T>
+inline constexpr bool is_integral_v = is_integral<T>::value;
+
+int main() {
+    static_assert(is_integral_v<int>);
+    return 0;
+}
 ```
 
 # 22. `std::is_array`
 
-``` cpp
-// 拷贝到这里运行：https://godbolt.org/
+点击 [这里](https://godbolt.org/z/6YT35jrsv) 运行代码
 
+``` cpp
 #include <type_traits>
 
 template <typename T>
@@ -763,14 +758,13 @@ int main() {
 
     return 0;
 }
-
 ```
 
 # 23. `std::is_pointer`
 
-``` cpp
-// 拷贝到这里运行：https://godbolt.org/
+点击 [这里](https://godbolt.org/z/1hPK8jv85) 运行代码
 
+``` cpp
 #include <type_traits>
 
 namespace details {
@@ -813,9 +807,9 @@ int main() {
 + `int*` 是 合法的指针，可以指向 int
 + `int Foo*` 是 Foo的成员指针
 
-``` cpp
-// 拷贝到这里运行：https://godbolt.org/
+点击 [这里](https://godbolt.org/z/T45G68ze1) 运行代码
 
+``` cpp
 struct Foo {};
 
 // 可以看到 即使 Foo 没有成员，这里 也是合法的
@@ -831,9 +825,9 @@ int main() {
 
 # 26. 标签分发：函数重载解析 （Function Overload Resolution）
 
-``` cpp
-// 拷贝到这里运行：https://godbolt.org/
+点击 [这里](https://godbolt.org/z/z77EGohzb) 运行代码
 
+``` cpp
 #include <type_traits>
 
 namespace detail {
@@ -857,9 +851,9 @@ int main() {
 
 再来一个 is_const
 
-``` cpp
-// 拷贝到这里运行：https://godbolt.org/
+点击 [这里](https://godbolt.org/z/ohrrTYf46) 运行代码
 
+``` cpp
 #include <type_traits>
 
 namespace detail {
@@ -887,9 +881,9 @@ int main() {
 
 实现 can_have_pointer_to_member
 
-``` cpp
-// 拷贝到这里运行：https://godbolt.org/
+点击 [这里](https://godbolt.org/z/E4saWEEEc) 运行代码
 
+``` cpp
 #include <type_traits>
 
 template<typename T>
@@ -908,9 +902,9 @@ int main() {
 
 # 28. `is_class` 简化版本
 
-``` cpp
-// 拷贝到这里运行：https://godbolt.org/
+点击 [这里](https://godbolt.org/z/4oqa6G9fs) 运行代码
 
+``` cpp
 #include <type_traits>
 
 namespace detail {

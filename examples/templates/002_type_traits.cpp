@@ -1,22 +1,14 @@
-#include <type_traits>
-
-namespace detail {
-    template<typename T>
-    constexpr bool is_class_or_union(int T::*) {
-        return not std::is_union<T>::value;
-    }
-
-    template<typename T>
-    constexpr bool is_class_or_union(...) {
-        return false;
-    }
-}
+#include <iostream>
 
 template <typename T>
-using is_class = std::bool_constant<detail::is_class_or_union<T>(nullptr)>;
+T foo(T a) {
+    // gcc 13.2 中，即使没有实例化模板，也会编译报错；
+    t = a
+    
+    return t;
+}
 
 int main() {
-    struct Foo {};
-    static_assert(is_class<Foo>::value);
+    // std::cout << foo(0) << std::endl;
     return 0;
 }
