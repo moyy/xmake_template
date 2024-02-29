@@ -1,4 +1,5 @@
-# 01. 函数模板
+#! https://zhuanlan.zhihu.com/p/684537801
+# 《C++ template 2nd》01. 函数模板
 
 # 1. 定义模板
 
@@ -82,19 +83,13 @@ int main() {
 
 # 3. 参数推导规则
 
-模板实例化 和 auto 推导 都遵循类似的规则：
+`cv-限定符`，指的是：const / volatile 限定符
 
-两种情况，通过值传递和通过引用（或指针）传递。
+模板 形参 按值传递: T a，实例化时：
 
-+ 值传递
-    - 忽略顶层 const / volatile 限定符；例子：实参 是 const int，T 推导为 int
-    - 数组 / 函数 指针的转换，例子：实参 是 int[10]，T 推导为 int*
-+ 引用 / 指针 传递
-    - 类型必须完全匹配：包括 cv 限定符；
-    - 这意味着，如果你有两个模板参数或 auto 变量都是通过引用传递的，它们对应的实参类型必须完全相同才能正确推导。
-+ 注意：
-    - 多个参数，都用了同一个模板类型 T，则必须完全匹配，才能成功推导
-    - 万能引用（T&&），实参是左值 / 右值 推导 为左值引用 或 非引用类型
++ 忽略 实参的引用；例子：实参是 int&，T 推导为 int
++ 忽略 实参的 `cv-限定符`；例子：实参 是 const int，T 推导为 int
++ 数组 / 函数，变 指针，例子：实参 是 int[10]，T 推导为 int*
 
 点击 [这里](https://godbolt.org/z/rx9z1xePv) 查看编译错误
 
@@ -109,10 +104,13 @@ T max (T a, T b) {
 int main() {
     int i = 17;
     int const c = 42;
+    
+    max(i, i); // OK: T推导为int
     max(i, c); // OK: T推导为int
     max(c, c); // OK: T推导为int
     
     int& ir = i;
+    max(ir, ir); // OK: T推导为int
     max(i, ir); // OK: T推导为int
     
     int arr[4];
@@ -132,6 +130,52 @@ int main() {
 + 强制转换: max(static_cast<double>(4), 7.2); 
 + 显式指定 T 类型: max<double>(4, 7.2); 
 + 定义模板时，参数定义为不同类型，见 第5节；
+
+模板 形参 按引用传递: T &a，实例化时：类型必须完全匹配：包括 `cv-限定符`；
+
+点击 [这里](https://godbolt.org/z/b8fEjhY1T) 查看编译错误
+
+``` cpp
+template<typename T>
+T& max (T& a, T& b) {
+    return b < a ? a : b;
+}
+
+int main() {
+    int i = 17;
+    int const c = 42;
+    
+    max(i, i); // OK: T推导为 int
+    max(c, c); // OK: T推导为 const int
+    
+    max(i, c); // Error
+    
+    return 0;
+}
+```
+
+模板 形参 按指针传递: T *a，实例化时：类型必须完全匹配：包括 `cv-限定符`；
+
+点击 [这里](https://godbolt.org/z/s6d8f64W6) 查看编译错误
+
+``` cpp
+template<typename T>
+T* max (T* a, T* b) {
+    return *b < *a ? a : b;
+}
+
+int main() {
+    int i = 17;
+    int const c = 42;
+    
+    max(&i, &i); // OK: T推导为 int
+    max(&c, &c); // OK: T推导为 const int
+    
+    max(&i, &c); // Error
+    
+    return 0;
+}
+```
 
 # 4. 默认参数
 
@@ -199,10 +243,18 @@ int main () {
 
 ## 5.2. 好：用 `auto` 让编译器找出返回类型
 
-点击 [这里](https://godbolt.org/z/boz4bdn7K) 运行
+注：下面的代码存在一个思维误区，以为 max的返回值是由运行时 a，b 大者 的 返回值 决定的，其实不是；
+
+因为：编译时，调用 max 的 a，b类型就确定了，所以 max的返回值类型也确定了；
+
+返回值 由 T1，T2 的 精度大的决定，比如 T1=int，T2=double，则返回类型为 double；
+
+点击 [这里](https://godbolt.org/z/vd91GdKMW) 运行
 
 ``` cpp
 // C++ 14后
+#include <type_traits>
+
 template<typename T1, typename T2>
 auto max (T1 a, T2 b)
 {
@@ -210,28 +262,150 @@ auto max (T1 a, T2 b)
 }
 
 int main () {
-    auto m = ::max(4, 7.2); // OK, m = double
+    auto r1 = ::max(4, 7.2); // OK, double r1
+    static_assert(std::is_same_v<decltype(r1), double>);
+
+    double a = 4.1;
+    int b = 7;
+    auto r2 = ::max(a, b); // OK, double r2
+    static_assert(std::is_same_v<decltype(r2), double>);
+
+    double &ra = a;
+    int &rb = b;
+    
+    static_assert(std::is_same_v<decltype(ra), double&>);
+    static_assert(std::is_same_v<decltype(rb), int&>);
+    
+    auto r3 = ::max(ra, rb); // OK, double r3
+    static_assert(std::is_same_v<decltype(r3), double>);
+
     return 0;
 }
 ```
 
 题外话，C++ 11，得这么写：
 
-点击 [这里](https://godbolt.org/z/c46Pzdqx1) 运行
++ 下面代码的 decltype(b<a?a:b) 可以改写成 decltype(true?a:b) 原因同上一段代码的注释也一样的；
+
+点击 [这里](https://godbolt.org/z/zbGTsGb7b) 运行
 
 ``` cpp
+#include <type_traits>
+
 // C++ 11, auto -> decltype
 template<typename T1, typename T2>
-auto max (T1 a, T2 b) -> decltype(b < a ? a : b)
+auto max (T1 a, T2 b) -> typename std::decay<decltype(b<a?a:b)>::type
 {
     return b < a ? a : b;
 }
 
 int main () {
-    auto m = ::max(4, 7.2); // OK, m = double
+    auto r1 = ::max(4, 7.2); // OK, double r1
+    static_assert(std::is_same<decltype(r1), double>::value);
+
+    double a = 4.1;
+    int b = 7;
+    auto r2 = ::max(a, b); // OK, double r2
+    static_assert(std::is_same<decltype(r2), double>::value);
+
+    double &ra = a;
+    int &rb = b;
+    
+    static_assert(std::is_same<decltype(ra), double&>::value);
+    static_assert(std::is_same<decltype(rb), int&>::value);
+    
+    auto r3 = ::max(ra, rb); // OK, double r3
+    static_assert(std::is_same<decltype(r3), double>::value);
+
     return 0;
 }
 ```
 
-
 ## 5.3. 好：将返回类型声明为两个参数类型的“公共类型”
+
+用 `std::common_type_t<T1, T2>` 显式指定，就要 两个类型的公共类型；
+
+点击 [这里](https://godbolt.org/z/vYdzv4cr9) 运行
+
+``` cpp
+#include <type_traits>
+
+template<typename T1, typename T2>
+std::common_type_t<T1, T2> max (T1 a, T2 b)
+{
+    return b < a ? a : b;
+}
+
+int main () {
+    double a = 4.8;
+    int b = 7;
+    
+    auto r = ::max(a, b); // OK, double r
+    static_assert(std::is_same_v<decltype(r), double>);
+
+    return 0;
+}
+```
+
+# 6. 重载
+
+点击 [这里](https://godbolt.org/z/MPnfGvKfb) 运行
+
+``` cpp
+#include <iostream>
+
+template <typename T>
+T max (T a, T b) {
+    std::cout << "T max(T, T);" << std::endl;
+    return a < b ? b: a;
+}
+
+int max (int a, int b) {
+    std::cout << "int max(int, int);" << std::endl;
+    return a < b ? b: a;
+}
+
+int main() {
+    ::max(7, 42);          // int max(int, int);
+    ::max(7.0, 42.0);      // T max(T, T);
+    ::max('a', 'b');       // T max(T, T);  
+    ::max<>(7, 42);        // T max(T, T); 只有模板才能解析 <>
+    ::max<double>(7, 42);  // T max(T, T); 只有模板才能解析 <>
+    ::max('a', 42.7);      // int max(int, int); 只有非模板函数允许这种类型转换
+    
+    return 0; 
+}
+```
+
+在调用函数之前，要声明所有的重载版本，否则有时候会出错
+
+点击 [这里](https://godbolt.org/z/3oP76Yjca) 运行
+
+``` cpp
+#include <iostream>
+
+// 打开这行注释，就可以 调用 int max(int, int) 了
+// int max(int a, int b);
+
+template <typename T>
+T max (T a, T b) {
+    std::cout << "T max(T, T);" << std::endl;
+    return a < b ? b: a;
+}
+
+template <typename T>
+T max (T a, T b, T c) {
+    return max(max(a, b), c); // max(a, b) 只能是 模板的，下面的 int 版本在这里不可见
+}
+
+int max (int a, int b) {
+    std::cout << "int max(int, int);" << std::endl;
+    return a < b ? b: a;
+}
+
+int main() {
+    ::max(7, 42, 60);
+    
+    return 0; 
+}
+```
