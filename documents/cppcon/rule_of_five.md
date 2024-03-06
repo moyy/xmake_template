@@ -15,12 +15,21 @@
 
 ## C.20: （零之准则）只要可能，请避免定义任何的默认操作
 
-+ 默认 构造函数: 逐成员 按声明顺序 调用 默认 构造函数
-+ 默认 析构函数: 逐成员 按声明相反顺序 调用 析构函数
-+ 默认 拷贝构造: 逐成员 按声明顺序 调用 拷贝构造函数
-+ 默认 拷贝赋值: 逐成员 按声明顺序 调用 拷贝赋值
-+ 默认 移动构造: 逐成员 按声明顺序 调用 移动构造
-+ 默认 移动赋值: 逐成员 按声明顺序 调用 移动赋值
+=default 或者（满足某些规则的）不声明 的 时候，C++ 编译器会自动生成 默认操作
+
+其效果 等价 于：
+
++ 如果是内置基础类型，构造函数不会初始化（除非声明时写了默认值）
++ 否则：见下表
+
+|函数|默认行为|
+|--|--|
+|构造函数|逐成员 按声明顺序 调用 默认 构造函数|
+|析构函数|逐成员 按声明`相反`顺序 调用 析构函数|
+|拷贝构造|逐成员 按声明顺序 调用 拷贝构造函数|
+|拷贝赋值|逐成员 按声明顺序 调用 拷贝赋值|
+|移动构造|逐成员 按声明顺序 调用 移动构造|
+|移动赋值|逐成员 按声明顺序 调用 移动赋值|
 
 这样最简单，而且能提供最清晰的语义。
 
@@ -431,58 +440,26 @@ int main() {
 
 我们来看看 这张表格，将 6个特殊函数分成 4类：
 
-+ 编译器默认实现 defaulted
-+ 编译器 默认删除 deleted
-+ 编译器 默认 不会声明 not declared
-+ 用户实现 user declared
-
 ![](https://www.foonathan.net/images/special-member-functions.png)
 
-可以看到，除了 前两行，剩下的规则很复杂：
+可以看到，规则很复杂：
 
-+ 只要实现拷贝，移动默认是不会声明的；
-+ 只要实现移动，拷贝默认是被删除的； 
++ 只要定义了任何构造，默认构造就 deleted
++ 只要实现拷贝，移动默认是 not declared；
+  - 意思就是 不会用，直接调用 拷贝构造 / 拷贝赋值 代替
+  - 具体见 第11节：附录1;
++ 只要实现移动，拷贝默认是 deleted； 
+  - 就是说，调用了会直接报错
+  - 具体见 第12节：附录2;
 
-干脆就不记了，只要实现了上面5个之一，就实现所有的，大不了用 =default 和 =delete 标注；
+干脆就 `不记了`，只要实现了上面5个之一，就实现所有的，大不了用 =default 和 =delete 标注；
 
-你以为这就完了吗？别急，还早！
+# 09. 用 std::unique_ptr 实现
 
-# 09. 如果不想用 原始指针实现
-
-考虑下，智能指针用 shared 还是 unique
-
-点击 [这里](https://godbolt.org/z/4eK9KTj14) 运行代码
-
-``` cpp
-#include <cstring>
-#include <memory>
-
-class SimpleString7 {
-public:
-    SimpleString7() : data_(new char[1]) { 
-        *data_.get() = '\0'; 
-    }
-
-    SimpleString7(char const * cp) : data_(new char[strlen(cp) + 1]) {
-        strcpy(data_.get(), cp);
-    }
-private:
-    // C++ 17 支持 shared_ptr<[]>
-    std::shared_ptr<char[]> data_;
-};
-
-int main() {
-    SimpleString7 s {"hello"};
-    return 0;
-}
-```
-
-# 10. 独占指针
-
-+ 用 unique 有个问题：它本身不支持 拷贝语义，所以要实现 拷贝语义的函数！
-+ 虽然 unique 支持 析构 / 移动 语义，但是根据“五之准则”，既然实现了拷贝，就要 全部声明
++ 用 unique_ptr 有个问题：它本身不支持 拷贝语义，所以要实现 拷贝语义的函数！
++ 虽然 unique_ptr 支持 析构 / 移动 语义，但是根据“五之准则”，既然实现了拷贝，就要 全部声明
     - 否则，根据上面的表格，实现了拷贝之后，移动语义会变成 not-declared
-    - 记不住记不住，直接实现了吧。
+    - `记不住记不住，直接 全部 实现了吧`
 
 点击 [这里](https://godbolt.org/z/h6WKTrM3c) 运行代码
 
@@ -538,7 +515,7 @@ int main() {
 }
 ```
 
-# 11. 零之准则
+# 10. 零之准则
 
 下面看看什么情况用 零之准则
 
@@ -570,3 +547,118 @@ int main() {
     return 0;
 }
 ```
+
+# 11. 附录1：只定义 拷贝构造 时，看看默认的移动构造
+
+点击 [这里](https://godbolt.org/z/9PjEEjWhv) 运行代码
+
+``` cpp
+#include <iostream>
+
+struct A {
+    // 注释掉这个，编译报错，想想为什么？
+    A() =default;
+
+    A(A&&) {
+        std::cout << "A(A&&)" << std::endl;
+    }
+};
+
+struct B {
+    // 注释掉这个，编译报错，想想为什么？
+    B() =default;
+
+    B(const B&) {
+        std::cout << "B(const B&)" << std::endl;
+    }
+};
+
+struct C {
+    A a;
+};
+
+// 用 编译器生成的 试试；
+struct D {
+    B b;
+    C c;
+};
+
+int main() {
+    D d;
+
+    D d2 = std::move(d);
+
+    return 0;
+}
+```
+
+下面程序会打印：
+
+``` txt
+B(const B&)
+A(A&&)
+```
+
+对比下表，想想为什么？
+
++ 提示：A 只定义了 移动构造；
++ 提示：B 只定义了 拷贝构造；
+
+![](https://www.foonathan.net/images/special-member-functions.png)
+
+# 12. 附录2：只定义 移动构造 时，看看默认的拷贝构造
+
+点击 [这里](https://godbolt.org/z/Wceo85eEM) 查看编译错误
+
+``` cpp
+#include <iostream>
+
+struct A {
+    // 注释掉这个，编译报错，想想为什么？
+    A() =default;
+
+    // 去掉注释，就能正常运行，想想为什么？
+    // A(const A&)=default;
+
+    A(A&&) {
+        std::cout << "A(A&&)" << std::endl;
+    }
+};
+
+struct B {
+    // 注释掉这个，编译报错，想想为什么？
+    B() =default;
+
+    B(const B&) {
+        std::cout << "B(const B&)" << std::endl;
+    }
+};
+
+struct C {
+    A a;
+};
+
+// 用 编译器生成的 试试；
+struct D {
+    B b;
+    C c;
+};
+
+int main() {
+    D d;
+
+    // 报错：A(const A&)=delete，想想为什么？
+    D d2 = d;
+    
+    return 0;
+}
+```
+
+上面程序会编译错误：A(const A&)=delete 不能调用
+
+对比下表，想想为什么？
+
++ 提示：A 只定义了 移动构造；
++ 提示：B 只定义了 拷贝构造；
+
+![](https://www.foonathan.net/images/special-member-functions.png)

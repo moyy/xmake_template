@@ -1,22 +1,29 @@
 #! https://zhuanlan.zhihu.com/p/685359271
-# （笔记）CppCon 2023: 不用虚函数的多态
+# （笔记）《走马观花：不用虚函数实现的多态技术》
 
-## 01. 笔记来源
+# 01. 背景
+
+笔记来源：
 
 + [B站 CppCon 2023: A Journey Into Non-Virtual Polymorphism in C++](https://www.bilibili.com/video/BV1Ft42187PT)
 + [上面视频 的 PPT](https://github.com/CppCon/CppCon2023/blob/main/Presentations/A_Journey_into_Non_Virtual_Polymorphism_Rud_Merriam.pdf)
 
-# 02. 背景
+导游表：
 
-问题：有个软件写了一段时间，已经有了很多现成的类，现在想将现有的对象统一放到一个地方调用，应该怎么处理？
+|技术|说明|所在章节|
+|--|--|--|
+|继承 & 虚函数|运行时多态|非主题：略|
+|lambda & `std::function` & `std::bind`|统一函数调用|非主题：略|
+|`std::any`|类型转换 + if|全是if，没有技巧|03节|
+|`std::variant` & `std::visit`|类型安全的union|04节-08节|
+|`std::tuple` & `std::apply`|静态容器|09节-10节|
+|`CRTP`|编译时多态|11节-14节|
 
-传统的做法：就是重构代码，弄个抽象类，然后将需要放到统一地方调用的函数统统修改为继承自抽象类的override虚函数实现；
+# 02. 问题 
 
-下面先看看 不用虚函数 实现的一些做法
+有个实现了几年的系统，里面已经积累了一堆动物的各种行为的模块；
 
-事先说明，技术无分好坏，所谓：“文章做到极处，无有它奇，只是恰好”
-
-# 03. 具体问题
+突然有一天，想将其中的 移动动作 集中到一个地方调用，就问你怎么办。
 
 狗会跑：
 
@@ -82,16 +89,7 @@ int main() {
 
 欸，我混了很多年才体会到一个道理：**全世界都是草创班子**；再说这些类又不是全出自你手，你想改别人不乐意怎么办？
 
-# 04. 可选方案
-
-+ 添加继承，用虚函数改写代码（不是这个讲座的主题，略）
-+ std::function && std::bind （不是这个讲座的主题，略）
-+ std::any: 基本不会用，太复杂；
-+ std::variant && std::fvisit
-+ std::tuple && std::apply
-+ `CRTP`: Curiously Recurring Template Pattern
-
-# 05. std::any
+# 03. `std::any`
 
 用 `std::any_cast<T>()` 做类型转换
 
@@ -166,9 +164,7 @@ int main() {
 }
 ```
 
-# 04. std::variant
-
-std::variant 就是 类型安全 的 union
+# 04. `std::variant` 类型安全 的 union
 
 + 提供 类型安全 union; 在同一内存位置存储多种类型
 + 缺点：其占用的内存大小 取决于 其所有候选成员中 最大的那个
@@ -242,9 +238,9 @@ int main() {
 }
 ```
 
-# 05. std::get_if
+# 05. `std::get_if`
 
-如果不想用 index，那么用 std::get_if 也可以，结果都是写 if
+如果不想用 index，那么用 `std::get_if` 也可以，结果都是写 if
 
 下面的例子，get_if 接受 Animal*，返回 Dog**，Fish**，Bird**
 
@@ -305,9 +301,9 @@ int main() {
 }
 ```
 
-# 06. std::visit
+# 06. `std::visit`
 
-为了遍历 std::vector<std::variant>，标准库提供了 std::visit
+为了遍历 std::vector<std::variant>，标准库提供了 `std::visit`
 
 + std::visit(fun, o): 判断类型并调用重载函数 `fun(cast<T>(o))`，具体看注释
 + 参数可以有多个
@@ -375,7 +371,7 @@ int main() {
 }
 ```
 
-# 07. std::visit 和 仿函数
+# 07. `std::visit` 和 仿函数
 
 点击 [这里](https://godbolt.org/z/vzo6rqef9) 运行代码
 
@@ -508,10 +504,7 @@ int main() {
 }
 ```
 
-# 09. std::tuple
-
-上面的重载是不是每个函数都要写一次，下面看看有没有别的写法
-
+# 09. `std::tuple` 静态容器
 
 点击 [这里](https://godbolt.org/z/rff7aP8so) 运行代码
 
@@ -575,7 +568,7 @@ int main() {
 }
 ```
 
-# 10. std::apply
+# 10. `std::apply`
 
 点击 [这里](https://godbolt.org/z/on8febTEh) 运行代码
 
@@ -638,183 +631,191 @@ int main() {
 
 # 11. `CRTP`: Curiously Recurring Template Pattern
 
-CRTP: 通过让一个类继承自一个模板基类，并将派生类自身作为模板参数传递给基类，来实现静态多态（编译时多态）和代码复用。
+`CRTP`: 通过让一个类继承自一个模板基类，并将派生类自身作为模板参数传递给基类，来实现静态多态（编译时多态）和代码复用。
 
-这种模式的名称源于 定义方式颇为奇特：定义类时，看似递归地继承自一个模板实例化版本的自己。
+`CRTP`技术特点：
 
-问题：没办法放到统一的容器里面
++ 定义类时，模板参数给定子类
++ 使用函数时，需要 `static_cast` 将基类转换为子类
 
-下面另外换一个例子：三角形，四边形的 draw
-
-点击 [这里](https://godbolt.org/z/91qezT9ff) 运行代码
+点击 [这里](https://godbolt.org/z/sM3njEchj) 运行代码
 
 ``` cpp
 #include <iostream>
 
-// Shape 是基类，D是模板化的子类
+// Animal 是基类，D是模板化的子类
 template<typename D>
-struct Shape {
-    void draw() {
-        auto& derived{static_cast<D&>(*this)};
+class Animal {
+public:
+    void move() {
+        // 注意：静态转换为具体类型，才能调用成员函数
+        auto& derived { static_cast<D&>(*this) };
         
-        derived.draw_impl();
+        derived.move_impl();
     }
 };
 
-struct Rectangle : public Shape<Rectangle> {
-    void draw_impl() const { std::cout << "Rectangle\n"; }
+class Dog: public Animal<Dog> {
+public:
+    void move_impl() {
+        std::cout << "Dog is running." << std::endl;
+    }
 };
 
-struct Square : public Shape<Square> {
-    void draw_impl() const { std::cout << "Square\n"; }
+class Bird: public Animal<Bird> {
+public:
+    void move_impl() {
+        std::cout << "Bird is flying." << std::endl;
+    }
 };
 
-struct Triangle : public Shape<Triangle> {
-    void draw_impl() const { std::cout << "Triangle\n"; }
+class Fish: public Animal<Fish> {
+public:
+    void move_impl() {
+        std::cout << "Fish is swimming." << std::endl;
+    }
 };
 
 int main() {
-    Rectangle rect;
-    rect.draw();
+    Dog dog;
+    dog.move();
 
-    Square sqr;
-    sqr.draw();
+    Bird bird;
+    bird.move();
 
-    Triangle tri;
-    tri.draw();
-
+    Fish fish;
+    fish.move();
     return 0;
 }
 ```
 
 # 12. `CRTP`: 通过 友元 封装细节
 
-注意：上面的 void draw_impl() 是 public的，这个不应该！
+注意：上面的 void move_impl() 是 public的，这个不应该！
 
-点击 [这里](https://godbolt.org/z/s7M5YTj4x) 运行代码
+点击 [这里](https://godbolt.org/z/8d8WjGWdz) 运行代码
 
 ``` cpp
 #include <iostream>
 
+// Animal 是基类，D是模板化的子类
 template<typename D>
-struct Shape {
-    void draw() const { 
-        derived().draw_impl(); 
+class Animal {
+public:
+    void move() {
+        derived().move_impl();
     }
-    
-    void erase() const {
-        derived().draw_impl(true); 
-    }
-    
+private:
     D const& derived() const {
+        // 注意：静态转换为具体类型，才能调用成员函数
         return static_cast<D const&>(*this); 
     };
 };
 
-struct Rectangle : public Shape<Rectangle> {
+class Dog: public Animal<Dog> {
 private:
-    friend Shape;
+    friend Animal;
     
-    void draw_impl( bool const erase = false) const {
-        std::cout << "Rectangle\n";
+    void move_impl() const {
+        std::cout << "Dog is running." << std::endl;
     }
 };
 
-struct Square : public Shape<Square> {
+class Bird: public Animal<Bird> {
 private:
-    friend Shape;
+    friend Animal;
     
-    void draw_impl( bool const erase = false) const {
-        std::cout << "Square\n";
+    void move_impl() const {
+        std::cout << "Bird is flying." << std::endl;
     }
 };
 
-struct Triangle : public Shape<Triangle> {
+class Fish: public Animal<Fish> {
 private:
-    friend Shape;
-    
-    void draw_impl( bool const erase = false) const {
-        std::cout << "Triangle\n";
+    friend Animal;
+
+    void move_impl() const {
+        std::cout << "Fish is swimming." << std::endl;
     }
 };
 
 int main() {
-    Rectangle rect;
-    rect.draw();
+    Dog dog;
+    dog.move();
 
-    Square sqr;
-    sqr.draw();
+    Bird bird;
+    bird.move();
 
-    Triangle tri;
-    tri.draw();
-
+    Fish fish;
+    fish.move();
     return 0;
 }
 ```
 
-# 13. 需要容器时候，还是得用 std::variant
+# 13. `CRTP` + `std::variant`
 
-点击 [这里](https://godbolt.org/z/3Y6YsKqoG) 运行代码
+如果需要装到容器，还得要 `std::variant` 一起用。
+
+点击 [这里](https://godbolt.org/z/1hcM4ac3Y) 运行代码
 
 ``` cpp
 #include <vector>
 #include <variant>
 #include <iostream>
 
+// Animal 是基类，D是模板化的子类
 template<typename D>
-struct Shape {
-    void draw() const { 
-        derived().draw_impl(); 
+class Animal {
+public:
+    void move() {
+        derived().move_impl();
     }
-    
-    void erase() const {
-        derived().draw_impl(true); 
-    }
-    
+private:
     D const& derived() const {
+        // 注意：静态转换为具体类型，才能调用成员函数
         return static_cast<D const&>(*this); 
     };
 };
 
-struct Rectangle : public Shape<Rectangle> {
+class Dog: public Animal<Dog> {
 private:
-    friend Shape;
+    friend Animal;
     
-    void draw_impl( bool const erase = false) const {
-        std::cout << "Rectangle\n";
+    void move_impl() const {
+        std::cout << "Dog is running." << std::endl;
     }
 };
 
-struct Square : public Shape<Square> {
+class Bird: public Animal<Bird> {
 private:
-    friend Shape;
+    friend Animal;
     
-    void draw_impl( bool const erase = false) const {
-        std::cout << "Square\n";
+    void move_impl() const {
+        std::cout << "Bird is flying." << std::endl;
     }
 };
 
-struct Triangle : public Shape<Triangle> {
+class Fish: public Animal<Fish> {
 private:
-    friend Shape;
-    
-    void draw_impl( bool const erase = false) const {
-        std::cout << "Triangle\n";
+    friend Animal;
+
+    void move_impl() const {
+        std::cout << "Fish is swimming." << std::endl;
     }
 };
 
 int main() {
-    Rectangle rect;
-    Square sqr;
-    Triangle tri;
-    
-    using ShapeVar = std::variant<Rectangle*, Square*, Triangle*>;
+    Dog dog;
+    Bird bird;
+    Fish fish;
 
-    std::vector<ShapeVar> shapes{&rect, &sqr, &tri};
+    using AnimalVar = std::variant<Dog*, Bird*, Fish*>;
+
+    std::vector<AnimalVar> shapes{&dog, &bird, &fish};
 
     for (auto& s: shapes) {
         std::visit([](auto* v) { 
-            v->draw(); 
+            v->move(); 
         }, s);
     }
 
@@ -826,98 +827,63 @@ int main() {
 
 这允许成员函数的this参数被显式地声明在函数参数列表中，从而使得成员函数可以像普通函数那样被重载和模板化。
 
-注：gcc 13.2 尚不支持 this推导，下面网址用了 最新主干 gcc编译
++ 注1: 用这个技术，就少了 static_cast
++ 注2: gcc 13.2 尚不支持 this推导，下面网址用了 最新主干 gcc编译
++ 注3: 注意链接里面的 编译选项 `--std=C++23`
 
-点击 [这里](https://godbolt.org/z/zdr6cGWsq) 运行代码
+点击 [这里](https://godbolt.org/z/1bTvjqYz8) 运行代码
 
 ``` cpp
 #include <iostream>
 
+// Animal 是基类，D是模板化的子类
 template<typename D>
-struct Shape {
-    // C++ 23 引入 this推导
-    // 不需要自己 static_cast<D&>(*this);
-    template<typename T>
-    void draw(this T&& self) { 
-        self.draw_impl();
-    }
-};
-
-struct Rectangle : public Shape<Rectangle> {
-    void draw_impl() const {
-        std::cout << "Rectangle\n";
-    }
-};
-
-struct Square : public Shape<Square> {
-    void draw_impl() const {
-        std::cout << "Square\n";
-    }
-};
-
-struct Triangle : public Shape<Triangle> {
-    void draw_impl( bool const erase = false) const {
-        std::cout << "Triangle\n";
-    }
-};
-
-int main() {
-    Rectangle rect;
-    rect.draw();
-
-    Square sqr;
-    sqr.draw();
-
-    Triangle tri;
-    tri.draw();
-
-    return 0;
-}
-```
-
-# 15. `TODO` 最后一个例子
-
-暂时没弄明白，作者想表达什么特性!
-
-点击 [这里](https://godbolt.org/z/ecTYnrjxK) 运行代码
-
-``` cpp
-#include <iostream>
-#include <thread>
-#include <chrono>
-
-template <typename DerivedT>
-struct WaitFor {
-    template<typename Func>
-    void wait_for(Func member, int16_t timeout = 100) {
-        auto& derived = *static_cast<DerivedT*>(this);
-        while (!(derived.*member)() && timeout > 0) { // 修改这里
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-            --timeout;
-        }
-        if (timeout <= 0) {
-            std::cout << "Timeout!" << std::endl;
-        } else {
-            std::cout << "Condition met!" << std::endl;
-        }
-    }
-};
-
-class Power : public WaitFor<Power> {
+class Animal {
 public:
-    bool isAwake() const {
-        // 这里只是一个示例条件，实际条件应该根据实际情况设计
-        static int counter = 0;
-        ++counter;
-        return counter > 5; // 假设在一定次数后条件满足
+    // C++ 23 引入 this推导
+    // 不需要 static_cast<D&>(*this);
+    template<typename T>
+    void move(this T&& self) { 
+        self.move_impl();
+    }
+};
+
+class Dog: public Animal<Dog> {
+private:
+    friend Animal;
+    
+    void move_impl() const {
+        std::cout << "Dog is running." << std::endl;
+    }
+};
+
+class Bird: public Animal<Bird> {
+private:
+    friend Animal;
+    
+    void move_impl() const {
+        std::cout << "Bird is flying." << std::endl;
+    }
+};
+
+class Fish: public Animal<Fish> {
+private:
+    friend Animal;
+
+    void move_impl() const {
+        std::cout << "Fish is swimming." << std::endl;
     }
 };
 
 int main() {
-    Power pow;
-   
-    // 使用wait_for等待Power的isAwake条件成立
-    pow.wait_for(&Power::isAwake);  
+    Dog dog;
+    dog.move();
+
+    Bird bird;
+    bird.move();
+
+    Fish fish;
+    fish.move();
     return 0;
 }
 ```
