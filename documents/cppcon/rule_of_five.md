@@ -1,5 +1,5 @@
 #! https://zhuanlan.zhihu.com/p/685154638
-#  笔记: C++ 基础 之 五之准则
+#  走马观花：析构 / 拷贝 / 移动
 
 ## 01. 笔记来源
 
@@ -13,7 +13,7 @@
 + [C.20: 零之准则 The Rule of Zero](https://github.com/lynnboy/CppCoreGuidelines-zh-CN/blob/master/CppCoreGuidelines-zh-CN.md#c21-%E5%A6%82%E6%9E%9C%E5%AE%9A%E4%B9%89%E6%88%96%E8%80%85-delete-%E4%BA%86%E4%BB%BB%E4%BD%95%E5%A4%8D%E5%88%B6%E7%A7%BB%E5%8A%A8%E6%88%96%E6%9E%90%E6%9E%84%E5%87%BD%E6%95%B0%E8%AF%B7%E5%AE%9A%E4%B9%89%E6%88%96%E8%80%85-delete-%E5%AE%83%E4%BB%AC%E5%85%A8%E9%83%A8)
 + [C.21: 五之准则 The Rule of Five](https://github.com/lynnboy/CppCoreGuidelines-zh-CN/blob/master/CppCoreGuidelines-zh-CN.md#c21-%E5%A6%82%E6%9E%9C%E5%AE%9A%E4%B9%89%E6%88%96%E8%80%85-delete-%E4%BA%86%E4%BB%BB%E4%BD%95%E5%A4%8D%E5%88%B6%E7%A7%BB%E5%8A%A8%E6%88%96%E6%9E%90%E6%9E%84%E5%87%BD%E6%95%B0%E8%AF%B7%E5%AE%9A%E4%B9%89%E6%88%96%E8%80%85-delete-%E5%AE%83%E4%BB%AC%E5%85%A8%E9%83%A8)
 
-## C.20: （零之准则）只要可能，请避免定义任何的默认操作
+## 编译器生成的缺省函数
 
 =default 或者（满足某些规则的）不声明 的 时候，C++ 编译器会自动生成 默认操作
 
@@ -22,7 +22,7 @@
 + 如果是内置基础类型，构造函数不会初始化（除非声明时写了默认值）
 + 否则：见下表
 
-|函数|默认行为|
+|编译器生成函数|行为等价于|
 |--|--|
 |构造函数|逐成员 按声明顺序 调用 默认 构造函数|
 |析构函数|逐成员 按声明`相反`顺序 调用 析构函数|
@@ -30,6 +30,8 @@
 |拷贝赋值|逐成员 按声明顺序 调用 拷贝赋值|
 |移动构造|逐成员 按声明顺序 调用 移动构造|
 |移动赋值|逐成员 按声明顺序 调用 移动赋值|
+
+## C.20: （零之准则）只要可能，请避免定义任何的默认操作
 
 这样最简单，而且能提供最清晰的语义。
 
@@ -444,7 +446,7 @@ int main() {
 
 可以看到，规则很复杂：
 
-+ 只要定义了任何构造，默认构造就 deleted
++ 只要定义了任何构造，默认构造就 not declared
 + 只要实现拷贝，移动默认是 not declared；
   - 意思就是 不会用，直接调用 拷贝构造 / 拷贝赋值 代替
   - 具体见 第11节：附录1;
