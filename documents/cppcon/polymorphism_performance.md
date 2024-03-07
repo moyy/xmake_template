@@ -1,12 +1,12 @@
 #! https://zhuanlan.zhihu.com/p/685712713
 # 各种多态技术的性能测试
 
-|技术|说明||
-|--|--|--|
-|继承 & 虚函数|运行时多态||
-|`std::any`|类型转换 + if|全是if，没有技巧||
-|`std::variant` & `std::visit`|类型安全的union||
-|`CRTP`|编译时多态||
+|图中函数名|对应的技术|
+|--|--|
+|VirtualFunction|虚函数|
+|AnyFunction|std::any & 类型转换|
+|VariantFunction|std::variant & std::visit|
+|CRTPFunction|CRTP & std::variant & std::visit|
 
 # 1. 说明
 
