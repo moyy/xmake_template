@@ -1,27 +1,27 @@
 #! https://zhuanlan.zhihu.com/p/685712713
 # 各种多态技术的性能测试
 
-|图中函数名|对应的技术|
+# 1. 说明
+
+## 1.1. [各种多态技术介绍见: 这里](https://zhuanlan.zhihu.com/p/685359271)
+
+## 1.2. 测试情况
+
++ 为了让代码不至于被优化掉，这里 的 move 统统返回了一个数字；
++ 都是 999个Animal 装到一个 vector，然后集中测试 从 vector 遍历调用move函数的性能
+
+|下图 横坐标 名字|测试技术|
 |--|--|
 |VirtualFunction|虚函数|
 |AnyFunction|std::any & 类型转换|
 |VariantFunction|std::variant & std::visit|
 |CRTPFunction|CRTP & std::variant & std::visit|
 
-# 1. 说明
-
-## 1.0. [各种多态技术介绍见: 这里](https://zhuanlan.zhihu.com/p/685359271)
-
-## 1.1. 测试情况
-
-+ 为了让代码不至于被优化掉，这里 的 move 统统返回了一个数字；
-+ 都是 999个Animal 装到一个 vector，然后集中测试 从 vector 遍历调用move函数的性能
-
-## 1.2. GCC 13.2，详情和代码见：[Quick Bench](https://quick-bench.com/q/tkAVYiiqH0LjclMeABsCiDKdp50)
+## 1.3. GCC 13.2，详情和代码见：[Quick Bench](https://quick-bench.com/q/tkAVYiiqH0LjclMeABsCiDKdp50)
 
 ![](../images/gcc_performance.png)
 
-## 1.3. Clang 17.0，详情和代码见：[Quick Bench](https://quick-bench.com/q/-FVeFVPn85eummqImksjytGD7w8)
+## 1.4. Clang 17.0，详情和代码见：[Quick Bench](https://quick-bench.com/q/-FVeFVPn85eummqImksjytGD7w8)
 
 ![](../images/clang_performance.png)
 
