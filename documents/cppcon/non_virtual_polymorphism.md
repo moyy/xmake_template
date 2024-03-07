@@ -19,6 +19,16 @@
 |`std::tuple` & `std::apply`|静态容器|09节-10节|
 |`CRTP`|编译时多态|11节-14节|
 
+## 01.1. [点这里：各种多态技术的性能测试](https://zhuanlan.zhihu.com/p/685712713)
+
+GCC 13.2 性能：
+
+![](https://pic3.zhimg.com/80/v2-817c95094d4059e9c7c3b0f8c1558ef6_720w.webp)
+
+Clang 17.0 性能：
+
+![](https://pic3.zhimg.com/80/v2-d2899f662b8556b55a23f4db18f257c2_720w.webp)
+
 # 02. 问题 
 
 有个实现了几年的系统，里面已经积累了一堆动物的各种行为的模块；
