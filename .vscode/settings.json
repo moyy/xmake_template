@@ -71,5 +71,6 @@
         "iomanip": "cpp",
         "sstream": "cpp",
         "__config": "cpp"
-    }
+    },
+    "C_Cpp.errorSquiggles": "disabled"
 }

@@ -1,13 +1,6 @@
 #! https://zhuanlan.zhihu.com/p/685839521
 # 邯郸学步 / 东施效颦 之 std::function 的 简化版实现
 
-`TODO` List:
-
-+ [] 优化：对小尺寸的类型 去掉一次 new
-+ [] 模板特化推导：能去掉 使用时的 显式声明
-+ [] 泛型参数：用变参模板
-+ [] 完美转发：完整处理 按值传递，左值，右值
-
 # 01. 背景
 
 笔记来源：
@@ -146,7 +139,7 @@ int main()
 }
 ```
 
-# 03. std::function = 模板化 的 函数对象
+# 04. std::function = 模板化 的 函数对象
 
 上面的代码，虽然用 虚函数 弄了个 CallableBase 统一了 两参数 的调用，让其调用时，不需要知道具体来源
 
@@ -237,7 +230,7 @@ int main()
 }
 ```
 
-# 04. 从 Callable 到 std::function ?
+# 05. 从 Callable 到 std::function ?
 
 std::function 可以指定 任何参数类型，返回值类型；
 
@@ -327,7 +320,7 @@ int main()
 }
 ```
 
-# 05. 擦除 Src 类型
+# 06. 擦除 Src 类型
 
 从上面的使用就可以看到：
 
@@ -417,7 +410,7 @@ int main() {
 }
 ```
 
-# 06. 封装 function
+# 07. 封装 function
 
 到这里，将 make_callable, CallableBase, Callable 封装到一个类中，以隐藏其实现细节;
 
@@ -499,7 +492,7 @@ int main() {
 
 到这里，我们 终于 有了一个 2参数的 初步可用的 泛型 函数调用了！
 
-# 07. 按 std::function 特化 类型声明
+# 08. 按 std::function 特化 类型声明
 
 用模板偏特化技术；
 
@@ -605,7 +598,7 @@ int main() {
 }
 ```
 
-# 08. 析构 / 拷贝 / 赋值：五之法则
+# 09. 析构 / 拷贝 / 赋值：五之法则
 
 既然 function 实现了 析构函数，按 Big Five 法则，就要实现 拷贝 / 赋值 / 移动，否则很容易出问题
 
@@ -732,4 +725,323 @@ int main() {
 }
 ```
 
-# 09. 待续
+# 10. 模板推导：概述
+
+`::function<int(int, int)> h { BinaryFunction(10) };` 需要写明类型，否则就报错；
+
+因为：全局函数推导时候，变成函数指针，`int(*)(int, int)` 并不是 `int(int, int)` 所以需要在处理一次；
+
+在C++ 17，有个 模板推导指南（guide） 的 声明，可以做到，下面是 简化版本，大家看下：
+
+代码抄袭自：gcc 的 源码；
+
+点击 [这里](https://godbolt.org/z/qe9nET1Mb) 运行代码:
+
+```cpp
+#include <cassert>
+#include <functional>
+
+// 一般模板，啥都没有，调用就是编译报错
+template <typename T>
+class MyFunction;
+
+template <typename Ret, typename Arg1, typename Arg2>
+class MyFunction<Ret(Arg1, Arg2)> {
+public:
+    template <typename Src>
+    MyFunction(Src src) { }
+
+    Ret operator()(Arg1 arg1, Arg2 arg2) { 
+        return Ret();
+    }
+};
+
+// ======================================= 2. 模板推导 辅助函数
+
+template<typename>
+struct __member_function { };
+
+template<typename Res, typename _Tp, typename Arg1, typename Arg2>
+struct __member_function<Res (_Tp::*) (Arg1, Arg2)> { 
+    using type = Res(Arg1, Arg2); 
+};
+
+template<typename Res, typename _Tp, typename Arg1, typename Arg2>
+struct __member_function<Res (_Tp::*) (Arg1, Arg2) &> {
+    using type = Res(Arg1, Arg2); 
+};
+
+template<typename Res, typename _Tp, typename Arg1, typename Arg2>
+struct __member_function<Res (_Tp::*) (Arg1, Arg2) const> { 
+    using type = Res(Arg1, Arg2); 
+};
+
+template<typename Res, typename _Tp, typename Arg1, typename Arg2>
+struct __member_function<Res (_Tp::*) (Arg1, Arg2) const &> { 
+    using type = Res(Arg1, Arg2); 
+};
+
+template<typename _Fn, typename _Op>
+using __member_function_t = typename __member_function<_Op>::type;
+
+// ======================================= 3. C++ 17 模板推导 guide
+
+// 函数指针，比如 全局函数 等，用这个将指针类型忽略
+template<typename Res, typename Arg1, typename Arg2>
+MyFunction(Res(*)(Arg1, Arg2)) -> MyFunction<Res(Arg1, Arg2)>;
+
+// 含有operator() 成员函数的：lambda，bind，函数对象
+// Signature = Ret(Arg1, Arg2)
+template<typename MemberFunction, typename Signature = __member_function_t<MemberFunction, decltype(&MemberFunction::operator())>>
+MyFunction(MemberFunction) -> MyFunction<Signature>;
+
+// ======================================= 4. 应用
+
+// 全局函数
+float global_function_float(float x, int y) {
+    return x * float(y);
+}
+
+struct BinaryFunction {
+    BinaryFunction(int v): v_(v) {}
+
+    int operator()(int x, int y) {
+        return v_ + x + y;
+    }
+
+    int v_;
+};
+
+class C {
+public:
+    static int staticFunc(int x, int y) {
+        return x + y;
+    }
+
+    float f(int x, int y) {
+        return float(x) * float(y);
+    }
+};
+
+int main() {
+    // 普通函数
+    MyFunction f1 { global_function_float };
+    f1(3, 4);
+
+    // 函数对象
+    MyFunction f2 { BinaryFunction(10) };
+    f2(3, 4);
+
+    // Lambda
+    auto g = [](int x, int y ) -> int { return x + y; };
+    MyFunction f3 { g };
+    f3(3, 4);
+
+    // 静态函数
+    MyFunction f4 { C::staticFunc };
+    f4(3, 4);
+
+    // 成员函数
+    C obj;
+    auto wrap = std::bind(&C::f, obj, std::placeholders::_1, std::placeholders::_2);
+    // 用bind后还是要指明类型
+    MyFunction<float(int, int)> f5 { wrap };
+    f5(3, 4);
+    
+    return 0;
+}
+```
+
+# 11. 将模板推导结合到 function
+
+结合 09 和 10 的知识点，可知：
+
+点击 [这里](https://godbolt.org/z/P5qjrPzhz) 运行代码:
+
+``` cpp
+#include <cassert>
+#include <functional>
+
+// 一般模板，啥都没有，调用就是编译报错
+template <typename T>
+class function;
+
+// 偏特化，将 函数原型写上
+template <typename Ret, typename Arg1, typename Arg2>
+class function<Ret(Arg1, Arg2)> {
+public:
+    // 模板化的构造函数，就是上面的 make_callable
+    // 用 模板 + 返回基类的指针，去 “擦除类型”
+    template <typename Src>
+    function(Src src) : ptr_(new Callable<Src>(src)) { }
+
+    ~function() { 
+        if (ptr_) {
+            delete ptr_; 
+        }
+    }
+
+    function(function const& rhs): ptr_(rhs.ptr_->clone()) { }
+
+    function& operator=(function const& rhs) {
+        if (&rhs != this) {
+            auto ptr = rhs.ptr_->clone();
+    
+            if (ptr_) {
+                delete ptr_;
+            }
+            ptr_ = ptr;
+        }
+        return *this;
+    }
+
+    function(function&& rhs) noexcept: ptr_(rhs.ptr_) {
+        rhs.ptr_ = nullptr;
+    }
+
+    function& operator=(function&& rhs) noexcept {
+        if (&rhs != this) {
+            if (ptr_) {
+                delete ptr_;
+            }
+            ptr_ = rhs.ptr_;
+            rhs.ptr_ = nullptr;
+        }
+        return *this;
+    }
+
+    Ret operator()(Arg1 arg1, Arg2 arg2) {
+        return ptr_->operator()(arg1, arg2);
+    }
+private:
+    class CallableBase {
+    public:
+        virtual Ret operator()(Arg1, Arg2) = 0;
+
+        virtual ~CallableBase() = default;
+
+        // 追加用于 复制 的 虚函数
+        virtual CallableBase* clone() const = 0;
+    };
+
+    template <typename Src>
+    class Callable: public CallableBase {
+    public:
+        Callable(Src src): src_(src) {}
+
+        CallableBase* clone() const
+        {
+            return new Callable<Src>(src_);
+        }
+
+        // 将 返回类型 和 参数 模板化
+        Ret operator()(Arg1 x, Arg2 y) override {
+            return src_(x, y);
+        }
+    private:
+        Src src_;
+    };
+private:
+    CallableBase* ptr_;
+};
+
+// ================ 模板推导部分
+
+template<typename>
+struct __member_function { };
+
+template<typename Res, typename _Tp, typename Arg1, typename Arg2>
+struct __member_function<Res (_Tp::*) (Arg1, Arg2)> { 
+    using type = Res(Arg1, Arg2); 
+};
+
+template<typename Res, typename _Tp, typename Arg1, typename Arg2>
+struct __member_function<Res (_Tp::*) (Arg1, Arg2) &> {
+    using type = Res(Arg1, Arg2); 
+};
+
+template<typename Res, typename _Tp, typename Arg1, typename Arg2>
+struct __member_function<Res (_Tp::*) (Arg1, Arg2) const> { 
+    using type = Res(Arg1, Arg2); 
+};
+
+template<typename Res, typename _Tp, typename Arg1, typename Arg2>
+struct __member_function<Res (_Tp::*) (Arg1, Arg2) const &> { 
+    using type = Res(Arg1, Arg2); 
+};
+
+template<typename _Fn, typename _Op>
+using __member_function_t = typename __member_function<_Op>::type;
+
+// 函数指针，比如 全局函数 等，用这个将指针类型忽略
+template<typename Res, typename Arg1, typename Arg2>
+function(Res(*)(Arg1, Arg2)) -> function<Res(Arg1, Arg2)>;
+
+// 含有operator() 成员函数的：lambda，bind，函数对象
+// Signature = Ret(Arg1, Arg2)
+template<typename MemberFunction, typename Signature = __member_function_t<MemberFunction, decltype(&MemberFunction::operator())>>
+function(MemberFunction) -> function<Signature>;
+
+// ======================================= 应用
+
+// 全局函数
+float global_function_float(float x, int y) {
+    return x * float(y);
+}
+
+struct BinaryFunction {
+    BinaryFunction(int v): v_(v) {}
+
+    int operator()(int x, int y) {
+        return v_ + x + y;
+    }
+
+    int v_;
+};
+
+class C {
+public:
+    static int staticFunc(int x, int y) {
+        return x + y;
+    }
+
+    int mem(int x, int y) {
+        return x + y;
+    }
+};
+
+int main() {
+    // 普通函数
+    ::function f1 { global_function_float };
+    assert(f1(3.5f, 2) == 7.0f);
+
+    // 函数对象
+    ::function f2 { BinaryFunction(10) };
+    assert(f2(3, 4) == 17);
+
+    // Lambda
+    auto g = [](int x, int y ) -> int { return x + y; };
+    ::function f3 { g };
+    assert(f3(3, 4) == 7);
+
+    // 静态函数
+    ::function f4 { C::staticFunc };
+    assert(f4(3, 4) == 7);
+
+    // 成员函数
+    C obj;
+    auto wrap = std::bind(&C::mem, obj, std::placeholders::_1, std::placeholders::_2);
+    // 用bind后还是要指明类型
+    ::function<float(int, int)> f5 { wrap };
+    assert(f5(3, 4) == 7);
+    
+    return 0;
+}
+```
+
+# 12. `TODO` 性能优化
+
+# 13. `TODO` 变参模板
+
+# 14. `TODO` 完美转发
+
