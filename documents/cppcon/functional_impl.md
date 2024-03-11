@@ -1038,10 +1038,229 @@ int main() {
     return 0;
 }
 ```
+# 12. 变参模板
 
-# 12. `TODO` 性能优化
+下面用 变参模板 + 完美转发 将 参数 从 两个 变成 任意个
 
-# 13. `TODO` 变参模板
+这里有个 疑问：从头到尾 我都不能加 &&，加了 && 万有引用，下面的 测试反而不正确了；
 
-# 14. `TODO` 完美转发
+`TODO` 暂时弄不明白为什么？
+
+点击 [这里](https://godbolt.org/z/McT7YjPGf) 运行代码:
+
+
+``` cpp
+#include <cassert>
+#include <utility>
+#include <functional>
+
+// 一般模板，啥都没有，调用就是编译报错
+template <typename T>
+class function; 
+
+// 偏特化，将 函数原型写上
+template <typename Ret, typename ... Args>
+class function<Ret(Args ...)> {
+public:
+    // 模板化的构造函数，就是上面的 make_callable
+    // 用 模板 + 返回基类的指针，去 “擦除类型”
+    template <typename Src>
+    function(Src src) : ptr_(new Callable<Src>(src)) { }
+
+    ~function() { 
+        if (ptr_) {
+            delete ptr_; 
+        }
+    }
+
+    function(function const& rhs): ptr_(rhs.ptr_->clone()) { }
+
+    function& operator=(function const& rhs) {
+        if (&rhs != this) {
+            auto ptr = rhs.ptr_->clone();
+    
+            if (ptr_) {
+                delete ptr_;
+            }
+            ptr_ = ptr;
+        }
+        return *this;
+    }
+
+    function(function&& rhs) noexcept: ptr_(rhs.ptr_) {
+        rhs.ptr_ = nullptr;
+    }
+
+    function& operator=(function&& rhs) noexcept {
+        if (&rhs != this) {
+            if (ptr_) {
+                delete ptr_;
+            }
+            ptr_ = rhs.ptr_;
+            rhs.ptr_ = nullptr;
+        }
+        return *this;
+    }
+
+    Ret operator()(Args ... args) {
+        return ptr_->operator()(std::forward<Args>(args)...);
+    }
+private:
+    class CallableBase {
+    public:
+        virtual Ret operator()(Args ...args) = 0;
+
+        virtual ~CallableBase() = default;
+
+        // 追加用于 复制 的 虚函数
+        virtual CallableBase* clone() const = 0;
+    };
+
+    template <typename Src>
+    class Callable: public CallableBase {
+    public:
+        Callable(Src src): src_(src) {}
+
+        CallableBase* clone() const
+        {
+            return new Callable<Src>(src_);
+        }
+
+        // 将 返回类型 和 参数 模板化
+        Ret operator()(Args ... args) override {
+            return src_(std::forward<Args>(args)...);
+        }
+    private:
+        Src src_;
+    };
+private:
+    CallableBase* ptr_;
+};
+
+// ================ 模板推导部分
+
+template<typename>
+struct __member_function { };
+
+template<typename Res, typename _Tp, typename ... Args>
+struct __member_function<Res (_Tp::*) (Args...)> { 
+    using type = Res(Args...); 
+};
+
+template<typename Res, typename _Tp, typename ... Args>
+struct __member_function<Res (_Tp::*) (Args...) &> {
+    using type = Res(Args...); 
+};
+
+template<typename Res, typename _Tp, typename ... Args>
+struct __member_function<Res (_Tp::*) (Args...) const> { 
+    using type = Res(Args...); 
+};
+
+template<typename Res, typename _Tp, typename ... Args>
+struct __member_function<Res (_Tp::*) (Args...) const &> { 
+    using type = Res(Args...); 
+};
+
+template<typename _Fn, typename _Op>
+using __member_function_t = typename __member_function<_Op>::type;
+
+// 函数指针，比如 全局函数 等，用这个将指针类型忽略
+template<typename Res, typename ... Args>
+function(Res(*)(Args...)) -> function<Res(Args...)>;
+
+// 含有operator() 成员函数的：lambda，bind，函数对象
+// Signature = Ret(Arg1, Arg2)
+template<typename MemberFunction, typename Signature = __member_function_t<MemberFunction, decltype(&MemberFunction::operator())>>
+function(MemberFunction) -> function<Signature>;
+
+// ======================================= 应用
+
+// 全局函数
+float global_function_float(float x, int y) {
+    return x * float(y);
+}
+
+struct BinaryFunction {
+    BinaryFunction(int v): v_(v) {}
+
+    int operator()(int x, int y) {
+        return v_ + x + y;
+    }
+
+    int v_;
+};
+
+class C {
+public:
+    static int staticId(int x) {
+        return x;
+    }
+
+    int memSum(int x, int y, int z) {
+        return x + y + z;
+    }
+};
+
+struct A {};
+
+// 测试函数
+void test_lvalue_ref(A&) { }
+
+void test_rvalue_ref(A&&) { }
+
+void test_by_value(A) { }
+
+int main() {
+    // 普通函数
+    ::function f1 { global_function_float };
+    assert(f1(3.5f, 2) == 7.0f);
+
+    // 函数对象
+    ::function f2 { BinaryFunction(10) };
+    assert(f2(3, 4) == 17);
+
+    // Lambda
+    auto g = [](int x, int y ) -> int { return x + y; };
+    ::function f3 { g };
+    assert(f3(3, 4) == 7);
+
+    // 静态函数
+    ::function f4 { C::staticId };
+    assert(f4(7) == 7);
+
+    // 成员函数
+    C obj;
+    auto wrap = std::bind(&C::memSum, obj, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+    // 用bind后还是要指明类型
+    ::function<int(int, int, int)> f5 { wrap };
+    assert(f5(1, 2, 3) == 6);
+    
+    // 测试 完美转发
+
+    ::function f_lvalue_ref(test_lvalue_ref);
+    ::function f_rvalue_ref(test_rvalue_ref);
+    ::function<void(A)> f_by_value(test_by_value);
+    
+    // 测试左值引用
+    A a;
+    f_lvalue_ref(a);
+
+    // 测试按值传递
+    f_by_value(a);
+    
+    f_rvalue_ref(std::move(a));
+    
+    // 测试 临时对象 按值传递
+    f_by_value(A {});
+
+    // 测试 临时对象 右值引用
+    f_rvalue_ref(A {});
+
+    return 0;
+}
+```
+
+# 13. `TODO` 性能优化
+
 
