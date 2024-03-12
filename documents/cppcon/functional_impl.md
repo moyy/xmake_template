@@ -24,7 +24,7 @@ std::function 可以封装统一的函数调用接口
 + 参数 可以是多个，类型任意；
 + 返回值 类型任意；
 
-1. 全局函数 / 函数指针
+一、全局函数 / 函数指针
 
 ``` cpp
 int id(int x)
@@ -47,7 +47,7 @@ void test_global_function() {
 }
 ```
 
-2. 函数对象片段:
+二、函数对象片段:
 
 ``` cpp
 void test_function_object() {
@@ -64,7 +64,7 @@ void test_function_object() {
 }
 ```
 
-3. lambda表达式片段：
+三、Lambda表达式片段：
 
 ``` cpp
 void test_lambda() {
@@ -76,7 +76,7 @@ void test_lambda() {
 }
 ```
 
-4. 静态成员函数
+四、静态成员函数
 
 ``` cpp
 void test_static_function() {
@@ -92,7 +92,7 @@ void test_static_function() {
 }
 ```
 
-5. 成员函数，绑定到 bind
+五、成员函数，绑定到 bind
 
 ``` cpp
 void test_member_bind() {
@@ -111,7 +111,7 @@ void test_member_bind() {
 }
 ```
 
-6. 成员函数，直接绑定
+六、成员函数，直接绑定
 
 ``` cpp
 void test_member_function() {
@@ -253,7 +253,7 @@ int main() {
 
 上面一节代码，有两个点需要重构：
 
-1. ICallable / Callable 都是 MyFunction 内部的细节，不应该暴露给外部；
+一、ICallable / Callable 都是 MyFunction 内部的细节，不应该暴露给外部；
 
 为此，将 ICallable / Callable 实现为 MyFunction的内部类：
 
@@ -281,7 +281,7 @@ private:
 };
 ```
 
-2. 根据 Big Five，有了析构函数，就要实现 拷贝 / 移动 相关的函数；
+二、根据 Big Five，有了析构函数，就要实现 拷贝 / 移动 相关的函数；
 
 先看 `ICallable` 不好实现拷贝构造，因为不知道具体类型；用 clone代替（Rust有 Clone Trait 可以借鉴）
 
@@ -360,7 +360,7 @@ MyFunction& operator=(MyFunction&& other) noexcept {
 
 相对上一版本的代码，只需要改动几个地方
 
-1. 给 MyFunction 添加模板参数 Ret，Arg，表示 返回值类型，参数类型
+一、给 MyFunction 添加模板参数 Ret，Arg，表示 返回值类型，参数类型
 
 ``` cpp
 template <typename Ret, typename Arg>
@@ -369,7 +369,7 @@ class MyFunction {
 };
 ```
 
-2. 将 MyFunction 的 int operator()(int) 接口模板化
+二、将 MyFunction 的 int operator()(int) 接口模板化
 
 ``` cpp
 template <typename Ret, typename Arg>
@@ -384,7 +384,7 @@ class MyFunction {
 };
 ```
 
-3. 将 内部类 Callable 的接口 int operator()(int) 也模板化
+三、将 内部类 Callable 的接口 int operator()(int) 也模板化
 
 ``` cpp
 template <typename Src>
@@ -400,7 +400,7 @@ public:
 };
 ```
 
-4. 应用的地方，现在就变成
+四、应用的地方，现在就变成
 
 ``` cpp
 float id(float x)
@@ -658,7 +658,7 @@ void test_member_bind() {
 
 # 07. 模板：可变参数 & 完美转发
 
-**注：** 本小节代码，可到 [Godbolt](https://godbolt.org/z/vo4jf91df) 运行 / 拷贝；
+**注：** 本小节代码，可到 [Godbolt](https://godbolt.org/z/3148M1Gxq) 运行 / 拷贝；
 
 终于到了 最后，我们将 Ret(Arg) 改为 可变参数模板，让它适配任意参数吧。
 
@@ -697,7 +697,7 @@ public:
     virtual Ret operator()(Args && ... args) = 0;
 };
 ```
-最后，是派生类的调用：
+派生类的调用：
 
 ``` cpp
 template <typename Src>
@@ -711,4 +711,144 @@ public:
 private:
     Src f_;
 };
+```
+
+最后，Deduction Guildes的部分需要修改
+
+上节 第一段代码:
+
+``` cpp
+// C++ 17: Deduction Guildes
+
+// 函数对象类: 函数对象 / lambda表达式 / std::bind / std::funciton
+template <
+    typename FunctionObject, 
+    typename OperatorSign = __member_function_t<FunctionObject, decltype(&FunctionObject::operator())>
+> MyFunction(FunctionObject) -> MyFunction<OperatorSign>;
+
+// 函数指针类：普通函数 / 类静态函数 / 类成员函数 可衰变为函数指针
+template <typename Res, typename ... Args>
+MyFunction(Res(*)(Args ...)) -> MyFunction<Res(Args...)>;
+```
+
+上节 第二段代码，保持不变
+
+``` cpp
+// Op = Tp::operator() 函数原型
+template <typename Fn, typename Op>
+using __member_function_t = typename __member_function<Op>::type;
+```
+
+上节 第三段代码:
+
+``` cpp
+// 通用模板，啥都没干
+template<typename>
+struct __member_function { };
+
+// 偏特化: Ret(Tp::*)(Args ...) --> Ret(Args ...)
+template<typename Ret, typename ClassType, typename ... Args>
+struct __member_function<Ret (ClassType::*) (Args ...)> { 
+    using type = Ret(Args ...); 
+};
+
+// 偏特化: Ret(Tp::*)(Args ...)& --> Ret(Args ...)
+template<typename Ret, typename ClassType, typename ... Args>
+struct __member_function<Ret (ClassType::*) (Args ...) &> {
+    using type = Ret(Args ...); 
+};
+
+// 偏特化: Ret(Tp::*)(Args ...) const --> Ret(Args ...)
+template<typename Ret, typename ClassType, typename ... Args>
+struct __member_function<Ret (ClassType::*) (Args ...) const> { 
+    using type = Ret(Args ...); 
+};
+
+// 偏特化: Ret(Tp::*)(Args ...) const& --> Ret(Args ...)
+template<typename Ret, typename ClassType, typename ... Args>
+struct __member_function<Ret (ClassType::*) (Args ...) const &> { 
+    using type = Ret(Args ...); 
+};
+```
+
+测试代码：
+
+``` cpp
+float sum(float x, int y)
+{
+    return x + float(y);
+}
+
+void test_global_function() {
+    // MyFunction<float(float, int)> f {sum};
+    MyFunction f { sum };
+    assert(f(4.5f, 3) == 7.5f);
+
+    // 函数指针 版本
+    float(*sum_ptr)(float, int) = sum;
+    assert(sum_ptr(4.5f, 3) == 7.5f);
+    
+    // MyFunction<float(float, int)> f2 {sum_ptr};
+    MyFunction f2 {sum_ptr};
+    assert(f2(4.5f, 3) == 7.5f);
+}
+```
+
+最后 再写个小函数，测试转发：左值，右值
+
+``` cpp
+struct A { };
+
+void f_by_value(A) {
+}
+
+void f_by_lvalue(A &) {
+}
+
+void f_by_rvalue(A &&) {
+}
+
+void test_forward() {
+    A a;
+
+    // MyFunction<void(A)> f { f_by_value };
+    MyFunction f { f_by_value };
+    // 编译错误：参数 认定了是 A&
+    // todo: 关于这个问题，搞不明白
+    // f(a);
+
+    f(A {});
+    f(std::move(a));
+
+    // MyFunction<void(A&)> f2 = f_by_lvalue;
+    MyFunction f2 = f_by_lvalue;
+    f2(a);
+    // 编译错误：左值引用不能接 临时对象
+    // f2(A {});
+
+    // MyFunction<void(A&&)> f3 = f_by_rvalue;
+    MyFunction f3 = f_by_rvalue;
+    f3(std::move(a));
+    f3(A {});
+    // 编译错误：右值引用不能接 左值
+    // f3(a);
+}
+```
+
+`TODO` 疑惑：为什么 直接传值的函数，传变量会认为是 A&，该怎么修改 ICallable / Callable / MyFunction 的 实现，才能让它正确处理？ 
+
+``` cpp
+struct A { };
+
+void f_by_value(A) {
+}
+
+int main() {
+    A a;
+
+    MyFunction<void(A)> f { f_by_value };
+
+    // 编译错误：参数 认定了是 A&
+    f(a);
+}
 ```
