@@ -287,6 +287,54 @@ constexpr T&& my_forward(std::remove_reference_t<T>&& t) noexcept {
 }
 ```
 
+## 05.3. 传值时
+
++ 注：留意下面代码的 断言
++ 注：到 [Godbolt](https://godbolt.org/z/73KMn66fK) 运行代码
+
+从下面代码可以看出：
+
+参数实现为 T t，当 T是值类型时，`std::forward<T>(t)` 的返回是 T&&
+
+如果 foo(T a) 的 T是自定义类型，那么 从 `foo(std::forward<T>(t))` 就调用 移动构造函数 了 !
+
+``` cpp
+#include <type_traits>
+
+// 左值表达式
+template <class T>
+constexpr T&& my_forward(std::remove_reference_t<T>& t) noexcept {
+    static_assert(std::is_same_v<T, int>);
+    
+    return static_cast<T&&>(t);
+}
+
+void foo(int a) { }
+
+template <typename T>
+void f(T t) {
+    // 值传递，T = int
+    static_assert(std::is_same_v<T, int>);
+    
+    // t = int
+    static_assert(std::is_same_v<decltype(t), int>);
+
+    static_assert(std::is_same_v<int&&, decltype(my_forward<T>(t))>);
+
+    // int t
+    // my_forward<T>(t) 是 int &&
+    // 但是 foo(int) 就是 调用 移动构造函数（如果 int 是自定义类型的话）
+    foo(my_forward<T>(t));
+}
+
+int main() {
+    int a = 4;
+ 
+    f(int(a));
+ 
+    return 0;
+}
+```
 ## 05.4. 传递左值引用
 
 注：留意下面代码的 断言
