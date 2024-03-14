@@ -1,5 +1,5 @@
 #! https://zhuanlan.zhihu.com/p/685839521
-# 第二版：东施效颦 之 `std::function` 的 简化版实现
+# `std::function` 的 简化版实现
 
 笔记来源：
 
@@ -8,12 +8,12 @@
 
 导游表：
 
-|章节|知识点|说明|
-|--|--|--|
-|02节|模板化函数调用||
-|03-04节|用虚函数进行类型擦除 / 模板化的工厂模式||
-|05-06节|C++ 17 推断指引（`Deduction Guildes`）||
-|07节|可变参数 & 完美转发||
+|章节|知识点|
+|--|--|
+|02节|模板化函数调用|
+|03-04节|模板化的工厂模式: 用 虚函数 进行 类型擦除|
+|05-07节|完美转发 / C++ 17 推断指引（`Deduction Guildes`）|
+|08节|可变参数|
 
 # 01. `std::function` 使用
 
@@ -351,6 +351,7 @@ MyFunction& operator=(MyFunction&& other) noexcept {
 分三个小节走：
 
 + 首先，先将 int(int) 变成 Ret(Arg)
++ 其次，通过 Ret(Arg) 看看 万有引用 和 完美转发，在 值传递，左右值引用传递带来的改进
 + 然后。完成 自动推导的 模板实现
 + 最后，实现通用版本的类型 Ret(Args ...)
 
@@ -450,9 +451,189 @@ int main() {
 }
 ```
 
-# 06. 模板：自动类型推导
+# 06. 模板：值传递，引用传递，完美转发
 
-**注：** 本小节代码，可到 [Godbolt](https://godbolt.org/z/9fqEe917d) 运行 / 拷贝；
+上面的代码，看起来ok，但实际上，下面的代码就有问题：
+
+**注：** 测试代码，可到 [Godbolt](https://godbolt.org/z/6r98Gz34z) 运行 / 拷贝；
+
+按值传递，似乎OK：
+
+``` cpp
+float id_by_value(float x)
+{
+    return x;
+}
+
+void test_by_value() {
+    float a = 4.2f;
+    
+    MyFunction<float(float)> f { id_by_value };
+    assert(f(4.2f) == 4.2f);
+
+    assert(f(a) == a);
+}
+```
+
+按左值引用传递，也OK：
+
+``` cpp
+float id_by_lref(float &x)
+{
+    return x;
+}
+
+void test_by_lref() {
+    MyFunction<float(float&)> f2 { id_by_lref };
+    assert(f2(a) == a);
+    
+    // 编译错误：左值引用 传不了 临时变量
+    // assert(f2(4.2f) == 4.2f);
+}
+```
+
+按右值引用传递，就有问题了：
+
+``` cpp
+float id_by_rref(float &&x)
+{
+    return x;
+}
+
+void test_by_rref() {
+
+    MyFunction<float(float&&)> f3 { id_by_rref };
+
+    // 不应该报错的，报错了
+    // Arg = float，不能传给 float&&
+    assert(f3(4.2f) == 4.2f);
+    assert(a == f3(std::move(a)));
+    
+    // Compile Error：右值引用 传不了 左值
+    // assert(f3(a) == a);
+}
+```
+
+原因是：Arg arg 这个参数，只能是值，不能是引用；
+
+于是就想到了 万能引用 && 和 完美转发 std::forward，八股一下试试：
+
+**注：** 万能引用代码，可到 [Godbolt](https://godbolt.org/z/Wj85oeMjq) 运行 / 拷贝；
+
+首先是 MyFunction 的 调用处：
+
+``` cpp
+template <typename Ret, typename Arg>
+class MyFunction<Ret(Arg)> {
+public:
+    // ...
+
+    Ret operator()(Arg && x) {
+        return base_->operator()(std::forward<Arg>(x));
+    }
+}
+```
+
+然后是 ICallable 调用处：
+
+``` cpp
+class ICallable {
+public:
+    // ...
+
+    virtual Ret operator()(Arg && x)=0;
+};
+```
+
+最后是 Callable 调用处：
+
+``` cpp
+template <typename Src>
+class Callable: public ICallable {
+public:
+    // ...
+
+    Ret operator()(Arg && x) override {
+        return f_(std::forward<Arg>(x));
+    }
+};
+```
+
+改完了，你会发现，左值引用 右值引用都能通过，除了 第一个例子：
+
+``` cpp
+float id_by_value(float x)
+{
+    return x;
+}
+
+void test_by_value() {
+    float a = 4.2f;
+    
+    MyFunction<float(float)> f { id_by_value };
+    assert(f(4.2f) == 4.2f);
+
+    // 这里编译错误: float && 传不到 float(float)
+    assert(f(a) == a);
+}
+```
+
+上面代码，为什么是 float&&，因为 Arg = float，Arg && 就是 float &&，没毛病
+
+万能引用只处理 引用，处理不了值；
+
+于是，去看 gcc 的 实现代码，发现它使用 std::forward 时，有些没有带 万有引用 && 的
+
+我于是 去掉 去掉 && 试试：
+
+**注：** 去掉万能引用代码，可到 [Godbolt](https://godbolt.org/z/99ddM9cq4) 运行 / 拷贝；
+
+首先是 MyFunction 的 调用处：
+
+``` cpp
+template <typename Ret, typename Arg>
+class MyFunction<Ret(Arg)> {
+public:
+    // ...
+
+    Ret operator()(Arg x) {
+        return base_->operator()(std::forward<Arg>(x));
+    }
+}
+```
+
+然后是 ICallable 调用处：
+
+``` cpp
+class ICallable {
+public:
+    // ...
+
+    virtual Ret operator()(Arg x)=0;
+};
+```
+
+最后是 Callable 调用处：
+
+``` cpp
+template <typename Src>
+class Callable: public ICallable {
+public:
+    // ...
+
+    Ret operator()(Arg x) override {
+        return f_(std::forward<Arg>(x));
+    }
+};
+```
+
+这下发现，去掉后，左值引用，右值引用，传值，都OK了；
+
+关于 std::forward 的具体实现，见：[这里](https://zhuanlan.zhihu.com/p/686980663)
+
+# 07. 模板：自动类型推导
+
+**注：** 本小节代码，可到 [Godbolt](https://godbolt.org/z/qcexdn5vx) 运行 / 拷贝；
 
 上一小节的代码，无法做到自动类型推导；具体来说，就是要显式声明 `MyFunction<float(float)> f {id};`，如果你想这样写 `MyFunction f {id};`就会得到编译器错误如下所示。
 
@@ -656,9 +837,9 @@ void test_member_bind() {
 
 `注：` 对 std::bind，就算 std::function 也无法做到自动类型推导，这里我就不尝试了（主要是无法抄袭。。。）
 
-# 07. 模板：可变参数 & 完美转发
+# 08. 模板：可变参数
 
-**注：** 本小节代码，可到 [Godbolt](https://godbolt.org/z/3148M1Gxq) 运行 / 拷贝；
+**注：** 本小节代码，可到 [Godbolt](https://godbolt.org/z/Gqbza8TGr) 运行 / 拷贝；
 
 终于到了 最后，我们将 Ret(Arg) 改为 可变参数模板，让它适配任意参数吧。
 
@@ -673,14 +854,14 @@ class MyFunction<Ret(Args ...)> {
 };
 ```
 
-然后，我们将 operator() 改为 应用变参，同时注意 && 在模板中表示 “万有引用”，配合 std::forward 实现 完美转发，能转发 左值和右值。
+然后，我们将 operator() 改为 应用变参
 
 ``` cpp
 template <typename Ret, typename ... Args>
 class MyFunction<Ret(Args ...)> {
     // ...
 
-    Ret operator()(Args && ... args) {
+    Ret operator()(Args ... args) {
         return base_->operator()(std::forward<Args>(args)...);
     }
 
@@ -694,7 +875,7 @@ class MyFunction<Ret(Args ...)> {
 class ICallable {
 public:
     // ...    
-    virtual Ret operator()(Args && ... args) = 0;
+    virtual Ret operator()(Args ... args) = 0;
 };
 ```
 派生类的调用：
@@ -705,7 +886,7 @@ class Callable: public ICallable {
 public:
     // ...
 
-    Ret operator()(Args && ... args) override {
+    Ret operator()(Args ... args) override {
         return f_(std::forward<Args>(args)...);
     }
 private:
@@ -794,61 +975,3 @@ void test_global_function() {
 }
 ```
 
-最后 再写个小函数，测试转发：左值，右值
-
-``` cpp
-struct A { };
-
-void f_by_value(A) {
-}
-
-void f_by_lvalue(A &) {
-}
-
-void f_by_rvalue(A &&) {
-}
-
-void test_forward() {
-    A a;
-
-    // MyFunction<void(A)> f { f_by_value };
-    MyFunction f { f_by_value };
-    // 编译错误：参数 认定了是 A&
-    // todo: 关于这个问题，搞不明白
-    // f(a);
-
-    f(A {});
-    f(std::move(a));
-
-    // MyFunction<void(A&)> f2 = f_by_lvalue;
-    MyFunction f2 = f_by_lvalue;
-    f2(a);
-    // 编译错误：左值引用不能接 临时对象
-    // f2(A {});
-
-    // MyFunction<void(A&&)> f3 = f_by_rvalue;
-    MyFunction f3 = f_by_rvalue;
-    f3(std::move(a));
-    f3(A {});
-    // 编译错误：右值引用不能接 左值
-    // f3(a);
-}
-```
-
-`TODO` 疑惑：为什么 直接传值的函数，传变量会认为是 A&，该怎么修改 ICallable / Callable / MyFunction 的 实现，才能让它正确处理？ 
-
-``` cpp
-struct A { };
-
-void f_by_value(A) {
-}
-
-int main() {
-    A a;
-
-    MyFunction<void(A)> f { f_by_value };
-
-    // 编译错误：参数 认定了是 A&
-    f(a);
-}
-```
