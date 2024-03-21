@@ -1,3 +1,4 @@
+#! https://zhuanlan.zhihu.com/p/688179504
 # 《C++ template 2nd》04.可变参数模板
 
 # 1. 例子
@@ -129,5 +130,3 @@ int main() {
     return 0;
 }
 ```
-
-# 5. 
