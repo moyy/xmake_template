@@ -3,6 +3,8 @@
 
 ## 01. 笔记来源
 
+**注：** 想直接看 C++ Big Five 规则的童鞋，最好看 [Modern Effective C++ Item17：理解特殊成员函数的生成](https://cntransgroup.github.io/EffectiveModernCppChinese/3.MovingToModernCpp/item17.html)
+
 + [B站 CppCon2023: Back to Basics The Rule of Five in C++](https://www.bilibili.com/video/BV1US421A7y8)
 + [上面视频 的 PPT](https://github.com/CppCon/CppCon2023/blob/main/Presentations/B2B_Rule_of_Five.pdf)
 
@@ -444,24 +446,31 @@ int main() {
 
 ![](https://www.foonathan.net/images/special-member-functions.png)
 
-可以看到，规则很复杂：
+可以看到，规则很复杂，更准确的描述，见：[Modern Effective C++ Item17：理解特殊成员函数的生成](https://cntransgroup.github.io/EffectiveModernCppChinese/3.MovingToModernCpp/item17.html)
 
-+ 只要定义了任何构造，默认构造就 not declared
-+ 只要实现拷贝，移动默认是 not declared；
-  - 意思就是 不会用，直接调用 拷贝构造 / 拷贝赋值 代替
-  - 具体见 第11节：附录1;
-+ 只要实现移动，拷贝默认是 deleted； 
-  - 就是说，调用了会直接报错
-  - 具体见 第12节：附录2;
++ 默认构造
+    - 仅当 不存在用户声明 构造函数时 才自动生成。
++ 析构函数：默认 noexcept
+    - 仅当 基类析构为虚函数 时 该类析构才为虚函数。
+拷贝构造函数
+    - 逐成员 拷贝 non-static数据
+    - 仅当类 没有 用户定义的拷贝构造时才生成
+    - 如果类声明了 移动操作， 拷贝构造就是delete的
+    - 当用户声明了 拷贝赋值 / 析构，该函数 自动生成 已被废弃。
++ 拷贝赋值运算符
+    - 逐成员 拷贝赋值 non-static数据
+    - 仅当类 没有 用户定义的拷贝赋值时才生成
+    - 如果类 声明了 移动操作，拷贝赋值就是delete的
+    - 当用户声明了拷贝构造或者析构，该函数自动生成已被废弃。
++ 移动构造函数 / 移动赋值运算符
+    - 都对非static数据执行逐成员 移动
+    - 仅当类 没有 用户定义的 拷贝操作 和 移动操作 和 析构时 才自动生成。
 
 干脆就 `不记了`，只要实现了上面5个之一，就实现所有的，大不了用 =default 和 =delete 标注；
 
 # 09. 用 std::unique_ptr 实现
 
-+ 用 unique_ptr 有个问题：它本身不支持 拷贝语义，所以要实现 拷贝语义的函数！
-+ 虽然 unique_ptr 支持 析构 / 移动 语义，但是根据“五之准则”，既然实现了拷贝，就要 全部声明
-    - 否则，根据上面的表格，实现了拷贝之后，移动语义会变成 not-declared
-    - `记不住记不住，直接 全部 实现了吧`
+根据“五之准则”，既然实现了拷贝，就要 全部声明
 
 点击 [这里](https://godbolt.org/z/h6WKTrM3c) 运行代码
 

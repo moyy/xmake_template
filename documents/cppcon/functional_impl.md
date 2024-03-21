@@ -752,11 +752,8 @@ using __member_function_t = typename __member_function<Op>::type;
 
 + Ret(Tp::*)(Arg)
 + Ret(Tp::*)(Arg) const
-+ Ret(Tp::*)(Arg) &
-    - 不是很清楚啥时候会是这种原型
-+ Ret(Tp::*)(Arg) const&
-    - 不是很清楚啥时候会是这种原型
-
++ Ret(Tp::*)(Arg) & 引用限定版本，见 [Modern Effective C++ Item 12](https://cntransgroup.github.io/EffectiveModernCppChinese/3.MovingToModernCpp/item12.html)
++ Ret(Tp::*)(Arg) const& 
 ``` cpp
 // 通用模板，啥都没干
 template<typename>

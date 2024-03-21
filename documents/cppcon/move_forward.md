@@ -264,12 +264,73 @@ int main() {
 }
 ```
 
-## 05.2. std::forward 实现 my_forward
+## 05.2. 错误实现的版本 my_forward
+
+我一开始就想，保持 左值引用 为左值，右值引用为右值，很简单啊
+
+``` cpp
+#include <type_traits>
+
+// 保持 左值引用为 左值
+template <class T>
+constexpr std::remove_reference_t<T>& my_forward(std::remove_reference_t<T>& t) noexcept {
+    return static_cast<std::remove_reference_t<T>&>(t);
+}
+
+// 保持 右值引用为 右值
+template <class T>
+constexpr std::remove_reference_t<T>&& my_forward(std::remove_reference_t<T>&& t) noexcept {
+    return static_cast<std::remove_reference_t<T>&&>(t);
+}
+```
+
+看来看去，很满意，没毛病，也不明白它和标准库的实现有啥不同
+
+然后 就 坚决用 测试 `打脸`：
+
+注：到 [Godbolt](https://godbolt.org/z/snTWM1ezz) 运行代码
+
+``` cpp
+void foo(int &a) {
+    std::cout << "foo(int &)" << std::endl;
+}
+
+void foo(int &&a) { 
+    std::cout << "foo(int &&)" << std::endl;
+}
+
+template <typename T>
+void f(T && a) {
+
+    static_assert(std::is_same_v<int, T>);
+    static_assert(std::is_same_v<int&&, decltype(a)>);
+    
+    // 错误的原因:
+    // 虽然 a类型 是 int&&，但是 a 是 左值
+    // 所以 调用的是 my_forward(T&)
+    foo(my_forward<T>(a));
+}
+
+int main() {
+    int a = 4;
+
+    // 我以为最后会打印 foo(int &&)
+    // 哪知道，最后打印的是 foo(int &)
+    f(std::move(a));
+}
+```
+
+在这里，错误的原因，就是 右值引用 的变量，在使用的时候是 左值，调用到 左值表达式的 my_forward 去了。
+
+有了这个觉悟，我们看看，标准库的 实现吧
+
+## 05.3. std::forward 实现 my_forward
 
 ``` cpp
 #include <type_traits>
 
 // 左值表达式
+// 注：这里返回的 是 T&& 通过万有引用，同时 处理 左值和右值变量
 template <class T>
 constexpr T&& my_forward(std::remove_reference_t<T>& t) noexcept {
 
@@ -281,13 +342,15 @@ constexpr T&& my_forward(std::remove_reference_t<T>& t) noexcept {
 // 右值表达式
 template <class T>
 constexpr T&& my_forward(std::remove_reference_t<T>&& t) noexcept {
+    
+    // 右值表达式 的 T不能是 左值
     static_assert(!std::is_lvalue_reference_v<T>, "bad forward call");
     
     return static_cast<T&&>(t);
 }
 ```
 
-## 05.3. 传值时
+## 05.4. 用例：左值表达式 传 值
 
 + 注：留意下面代码的 断言
 + 注：到 [Godbolt](https://godbolt.org/z/73KMn66fK) 运行代码
@@ -335,11 +398,11 @@ int main() {
     return 0;
 }
 ```
-## 05.4. 传递左值引用
 
-注：留意下面代码的 断言
+## 05.5. 用例：左值表达式 传 左值引用
 
-注：到 [Godbolt](https://godbolt.org/z/PPTKMv5nx) 运行代码
++ 注：留意下面代码的 断言
++ 注：到 [Godbolt](https://godbolt.org/z/PPTKMv5nx) 运行代码
 
 ``` cpp
 #include <iostream>
@@ -378,11 +441,10 @@ int main() {
 }
 ```
 
-## 05.5. 传递右值引用
+## 05.6. 用例：左值表达式 传 右值引用
 
-注：留意下面代码的 断言
-
-注：到 [Godbolt](https://godbolt.org/z/vf3TrcYPW) 运行代码
++ 注：留意下面代码的 断言
++ 注：到 [Godbolt](https://godbolt.org/z/vf3TrcYPW) 运行代码
 
 ``` cpp
 #include <iostream>
@@ -422,11 +484,10 @@ int main() {
 }
 ```
 
-## 05.6. 传递右值表达式
+## 05.7. 用例：右值表达式
 
-注：留意下面代码的 断言
-
-注：到 [Godbolt](https://godbolt.org/z/Td377eq8M) 运行代码
++ 注：留意下面代码的 断言
++ 注：到 [Godbolt](https://godbolt.org/z/Td377eq8M) 运行代码
 
 ``` cpp
 #include <iostream>
