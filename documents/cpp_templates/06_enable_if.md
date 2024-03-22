@@ -1,3 +1,4 @@
+#! https://zhuanlan.zhihu.com/p/688435379
 # 《C++ template 2nd》06. 移动语义 与 enable_if
 
 # 01. 完美转发
@@ -129,3 +130,148 @@ explicit Person(STR&& n): name(std::forward<STR>(n)) { }
 ```
 
 完整代码见：[这里](https://godbolt.org/z/sjMr531xP) 运行
+
+# 04. 禁用 默认拷贝构造
+
+有模板构造函数，编译器还是会生成默认的拷贝构造；而且优先调用const拷贝构造
+
+具体例子：下面代码，不会打印任何东西；
+
+完整代码见：[这里](https://godbolt.org/z/vYaMq1jMz) 运行
+
+``` cpp
+#include <iostream>
+
+class C {
+public:
+    C() = default;
+    
+    // 这么定义，编译器还是会生成 默认的拷贝构造函数
+    template <typename T>
+    C (T const&) {
+        std::cout << "tmpl copy constructor\n";
+    }
+};
+
+int main() {
+    C a;
+    
+    // 调用 默认的拷贝构造函数
+    C b { a };
+}
+```
+
+修改，加上 = delete 禁用 const volatile & 的 拷贝构造即可/
+
+完整代码见：[这里](https://godbolt.org/z/nd7E3b3Md) 运行
+
+``` cpp
+#include <iostream>
+
+class C {
+public:
+    C() = default;
+
+    C (C const volatile &) = delete;
+
+    template <typename T>
+    C (T const&) {
+        std::cout << "tmpl copy constructor\n";
+    }
+};
+
+int main() {
+    C a;
+    
+    // 调用 默认的拷贝构造函数
+    C b { a };
+}
+```
+
+# 05. C++ 20: Concepts
+
+下面使用 Concepts 重写 03. Person 的 Demo
+
+首先是头文件 
+
+``` cpp
+#include <concepts>
+```
+
+然后是定义 StringConvertible 概念
+
+``` cpp
+// StringConvertible: 检查类型是否可以转换为 std::string
+template<typename STR>
+concept StringConvertible = requires(STR s) {
+    std::string{std::forward<STR>(s)};
+};
+```
+
+最后是 模板构造函数使用 约束：
+
+``` cpp
+// 模板参数 STR 必须满足 StringConvertible 概念
+template<StringConvertible STR>
+explicit Person(STR&& n) : name(std::forward<STR>(n)) {
+    std::cout << "Person: " << name << "\n";
+}
+```
+
+完整代码 点击 [这里](https://godbolt.org/z/33dThdYbW) 运行
+
+``` cpp
+#include <concepts>
+#include <string>
+#include <iostream>
+#include <utility>
+
+// 检查类型是否可以转换为 std::string
+template<typename STR>
+concept StringConvertible = requires(STR s) {
+    std::string{std::forward<STR>(s)};
+};
+
+class Person {
+private:
+    std::string name;
+public:
+    // 使用概念约束模板构造函数
+    template<StringConvertible STR>
+    explicit Person(STR&& n) : name(std::forward<STR>(n)) {
+        std::cout << "Person: " << name << "\n";
+    }
+    
+    // 拷贝构造
+    Person(const Person& p) : name(p.name) {
+        std::cout << "Person const&: " << name << "\n";
+    }
+
+    // 移动构造
+    Person(Person&& p) noexcept : name(std::move(p.name)) {
+        std::cout << "Person &&: " << name << "\n";
+    }
+};
+
+int main() {
+    std::string s = "sname";
+    
+    // Person: sname
+    Person p1(s);
+    
+    // Person: tmp
+    Person p2("tmp");
+    
+    // 拷贝构造
+    Person p3(p1); // 现在这里不会出错了
+
+    // Person &&: sname
+    Person p4(std::move(p1));
+    
+    // Person: ctmp
+    const Person p2c("ctmp");
+    // Person const&: ctmp
+    Person p3c(p2c);
+}
+
+```
