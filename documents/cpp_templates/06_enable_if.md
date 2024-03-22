@@ -53,7 +53,6 @@ void foo() { }
 
 点击 [这里](https://godbolt.org/z/Mo816s77n) 运行
 
-
 ``` cpp
 #include <utility>
 #include <string>
@@ -103,11 +102,30 @@ int main() {
 }
 ```
 
-为了让 上面代码 非const Person 对象 可以用构造函数，将构造函数改为；
+为了让 上面代码 非const Person 对象 可以用 拷贝构造函数，将构造函数改为；
+
+``` cpp
+template<typename T>
+using EnableIfString = std::enable_if_t<
+    std::is_convertible_v<T,std::string>
+>;
+```
+
+也可以使用 std::is_constructible，允许显式转换用于初始化，但参数顺序和 std::is_convertible 相反。
+
+``` cpp
+template<typename T>
+using EnableIfString = std::enable_if_t<
+    std::is_constructible_v<std::string, T>
+>;
+```
+
+模板构造函数 如下：
 
 ``` cpp
 // 如果 STR 能推导 string，则定义该函数
-template<typename STR, typename = std::enable_if_t<std::is_convertible_v<STR, std::string>>>
-Person(STR&& n) { ... }
+template <typename STR, typename = EnableIfString<STR>>
+explicit Person(STR&& n): name(std::forward<STR>(n)) { }
 ```
 
+完整代码见：[这里](https://godbolt.org/z/sjMr531xP) 运行
